@@ -1,11 +1,14 @@
 [package]
-name = "dedelf"
+name = "ded-elf"
 version = "0.1.0"
-authors = ["aclifford <alexandra.clifford@ll.mit.edu>"]
+authors = ["nand-nor <a13xandra.cliff0rd@gmail.com>"]
 edition = "2018"
 
-# See more keys and their definitions at https://doc.rust-lang.org/cargo/reference/manifest.html
-
 [dependencies]
-#byteorder = "*"
-#memmem = "*"
+byteorder = "*"
+#memmem = "*"  may want to search for byte strings at some point
+intervaltree = "0.2.5"
+
+[[bin]]
+name = "dedelf"
+path = "src/bin/main.rs"

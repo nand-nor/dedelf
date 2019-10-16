@@ -1,3 +1,13 @@
+/.idea
 /target
 **/*.rs.bk
 Cargo.lock
+shell_asm/bin/*
+shell_asm/assembly/*.asm
+shell_asm/assembly/*.s
+shell_asm/assembly/*.S
+shell_asm/assembly/*.ndisasm
+shell_asm/assembly/*.o
+shell_asm/code/*.o
+.gdbinit
+

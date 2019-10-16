@@ -1,0 +1,56 @@
+{
+  "mode": "",
+  "infile": "",
+  "outfile": "",
+  "injection-options": {
+    "section": "",
+    "entry": "",
+    "size": "",
+    "replace": "",
+    "byte-offset": ""
+  },
+  "modify-options": {
+    "exec-options": {
+      "field": "",
+      "replacement": ""
+    },
+    "header-sec-options": {
+      "name": "",
+      "index": "",
+      "field": "",
+      "replacement": ""
+    },
+    "header-seg-options": {
+      "index": "",
+      "field": "",
+      "replacement": ""
+    },
+    "new-sec-options": {
+      "sec-header-options": {
+        "sh_name": "",
+        "sh_type":"",
+        "sh_flags": "",
+        "sh_addr":"",
+        "sh_offset":"",
+        "sh_size;":"",
+        "sh_link":"",
+        "sh_info":"",
+        "sh_addralign":"",
+        "sh_entsize":""
+      },
+      "name": ""
+    },
+    "new-seg-options" : {
+      "prog-header-options": {
+        "p_type": "",
+        "p_flags": "",
+        "p_vaddr": "",
+        "p_paddr": "",
+        "p_offset": "",
+        "p_filesz": "",
+        "p_memsz": "",
+        "p_align": ""
+      }
+    }
+  }
+}
