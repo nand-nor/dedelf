@@ -21,10 +21,10 @@ pub fn parse_args(infile: &mut String,
                   outfile: &mut String,
                   options: &mut DedElfOps) -> Result<(), std::io::Error>{
 
-    let mut size: Option<usize> = Some(INJ_DEFAULT_SIZE);
-    let mut entry: Option<u64> = INJ_DEFAULT_ENTRY;
+    let mut size: Option<String> = None;//Some(INJ_DEFAULT_SIZE);
+    let mut entry: Option<String> = None;//INJ_DEFAULT_ENTRY;
     let mut extend: Option<String> = None;
-    let mut offset: Option<u64> = INJ_DEFAULT_OFFSET;
+    let mut offset: Option<String> = None;//INJ_DEFAULT_OFFSET;
     let mut replace = INJ_DEFAULT_REPLACE;
     let mut inj_file: String = " ".to_string();
     let mut toutfile: String = " ".to_string();
@@ -98,10 +98,12 @@ pub fn parse_args(infile: &mut String,
     let copy = inj_file.to_string();
     match default_mode{
         Mode::INJECT => {
-            if extend == None {
+            if extend == None && offset == None {
+                println!("Setting default inject section to {:?}", INJ_DEFAULT_EXT);
                 extend = Some(INJ_DEFAULT_EXT.unwrap().to_string());
             }
             *options = DedElfOps::parse_inj_ops(size, extend, entry, replace, offset, inj_file)?;
+            println!("OK options are: {:?}", *options);
             return Ok(())
         }
         Mode::MODIFY => {
@@ -127,34 +129,63 @@ pub struct DedElfOps {
 impl DedElfOps {
 
     pub fn parse_inj_ops(
-        size: Option<usize>,
+        size: Option<String>,
         extend: Option<String>,
-        entry: Option<u64>,
+        entry: Option<String>,
         replace: bool,
-        b_offset: Option<u64>,
+        b_offset: Option<String>,
         file: String) -> Result<DedElfOps, std::io::Error> {
         let mut op_flag = false;
         let mut new_size: usize = INJ_DEFAULT_SIZE;
         let mut new_entry: Option<u64> = INJ_DEFAULT_ENTRY;
-        let mut new_extend: Option<String> = Some(INJ_DEFAULT_EXT.unwrap().to_string());
+        let mut new_extend: Option<String> = None;//Some(INJ_DEFAULT_EXT.unwrap().to_string());
         let mut new_b_offset: Option<u64> = INJ_DEFAULT_OFFSET;
 
         if let Some(size) = size {
             op_flag = true;
-            new_size = size;
+
+            let trimmed = size.trim_start_matches("0x");
+            let check = usize::from_str_radix(trimmed, 16);
+            if check.is_err() {
+                return Err(std::io::Error::new(std::io::ErrorKind::Other,
+                                               ("Invalid injection mode options (size) provided")))
+
+            }
+            new_size = check.unwrap();
         }
         if let Some(entry) = entry {
             op_flag = true;
-            new_entry = Some(entry);
+            let trimmed = entry.trim_start_matches("0x");
+            let check = u64::from_str_radix(trimmed, 16);
+            if check.is_err() {
+                return Err(std::io::Error::new(std::io::ErrorKind::Other,
+                                               ("Invalid injection mode options (entry) provided")))
+            }
+
+            new_entry = Some(check.unwrap());
         }
+
         if let Some(extend) = extend {
             op_flag = true;
             new_extend = Some(extend);
+
+        } else if extend.is_none() && b_offset.is_none() {
+            new_extend = Some(INJ_DEFAULT_EXT.unwrap().to_string());
         }
+
         if let Some(b_offset) = b_offset {
             op_flag = true;
-            new_b_offset = Some(b_offset);
+            let trimmed = b_offset.trim_start_matches("0x");
+            let check = u64::from_str_radix(trimmed, 16);
+            if check.is_err() {
+                return Err(std::io::Error::new(std::io::ErrorKind::Other,
+                                               ("Invalid injection mode options (byte offset) provided")))
+            }
+            new_b_offset = Some(check.unwrap());
         }
+
+
+
         match op_flag {
             false => {
                 return Ok(DedElfOps {
@@ -179,7 +210,7 @@ impl DedElfOps {
         }
     }
 
-            pub fn no_ops() -> DedElfOps {
+    pub fn no_ops() -> DedElfOps {
         DedElfOps {
             injection: None,
             modify: None,

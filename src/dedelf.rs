@@ -69,45 +69,82 @@ impl DedElf for Elf {
 
     fn inject(&mut self)-> Result<(), std::io::Error> {
         if let Some(inj) = &self.ops.injection {
-            if let Some(section) = inj.get_extend() {
-                let size = inj.get_size();
-                // let section = ".text".to_string();//inj.get_extend();
-                let entry = inj.get_entry();
-                let mut tree_segs = vec![];
 
-                for i in 0..self.parser.segments.len() {
-                    let _left = self.parser.segments[i].offset();
+            let mut offset: u64 = 0;
+            let mut sec_size = None;
+            let mut tree_segs = vec![];
 
-                    let left: u64 = match _left {
-                        PHTOffset::ThirtyTwo(left) => { left as u64 },
-                        PHTOffset::SixtyFour(left) => { left },
-                    };
+            for i in 0..self.parser.segments.len() {
+                let _left = self.parser.segments[i].offset();
 
-                    let right = left + self.parser.segments[i].file_size() as u64;
-                    tree_segs.push((left..right, i as u64));
-                }
+                let left: u64 = match _left {
+                    PHTOffset::ThirtyTwo(left) => { left as u64 },
+                    PHTOffset::SixtyFour(left) => { left },
+                };
 
-                let tree: intervaltree::IntervalTree<u64, u64> = tree_segs.iter().cloned().collect();
+                let right = left + self.parser.segments[i].file_size() as u64;
+                tree_segs.push((left..right, i as u64));
+            }
 
-                let off = self.parser.get_section_offset_by_name(section.as_str());
+            let seg_tree: intervaltree::IntervalTree<u64, u64> = tree_segs.iter().cloned().collect();
+            let size = inj.get_size();
+            let entry = inj.get_entry();
+            let mut section: String = " ".to_string();
+
+            if let Some(_section) = inj.get_extend() {
+
+                println!("UGH point 2");
+
+                let off = self.parser.get_section_offset_by_name(_section.as_str());
 
                 if off.is_none() {
                     return Err(std::io::Error::new(std::io::ErrorKind::Other,
                                                    "Invalid Extend Section Entered"))
                 }
 
-                let offset = *off.unwrap();
-                let mut sec_size = 0;
-
+                offset = *off.unwrap() as u64;
+                //let mut sec_size = 0;
+                section = _section;
                 for i in 0..self.parser.sections.len() {
                     //TODO resolve this
                     if self.parser.sections[i].name() == section {
-                        sec_size = self.parser.sections[i].size() as usize;
+                        sec_size = Some(self.parser.sections[i].size() as usize);
                         break;
                     }
                 }
+            }  else if let Some(_offset) = inj.get_offset() {
+                println!("UGH");
+                offset = _offset;
+                //section = self.parser.get_section_name_by_offset(section.as_str());
+                let mut tree_secs = vec![];
 
-                let point: Vec<u64> = tree
+                for i in 0..self.parser.sections.len() {
+                    let left = self.parser.sections[i].offset();
+/*
+                    let left: u64 = match _left {
+                        SHTOffset::ThirtyTwo(left) => { left as u64 },
+                        SHTOffset::SixtyFour(left) => { left },
+                    };*/
+
+                    let right = left + self.parser.sections[i].size() as u64;
+                    tree_secs.push((left..right, i as u64));
+                }
+
+                let sec_tree: intervaltree::IntervalTree<u64, u64> = tree_secs.iter().cloned().collect();
+                let sec_point: Vec<u64> = seg_tree
+                    .query_point(offset as u64)
+                    .map(|x| x.value)
+                    .collect();
+
+                section = self.parser.sections[sec_point[0] as usize].name();
+                println!("The name returned is {:?}", section);
+
+            } else {
+                println!("UGh ugh ugh ughH");
+
+            }
+
+            let point: Vec<u64> = seg_tree
                     .query_point(offset as u64)
                     .map(|x| x.value)
                     .collect();
@@ -132,7 +169,7 @@ impl DedElf for Elf {
 
                 let _inj_site = self.parser.modify_segment(point[0] as usize,
                                                            offset as u64,
-                                                           Some(sec_size),
+                                                           sec_size,
                                                            size,
                                                            inj_bytes.to_vec())?;
 
@@ -150,18 +187,11 @@ impl DedElf for Elf {
                                                           None)?;
                 }
                 return Ok(())
-            } else if let Some(offset) = inj.get_offset() {
 
-
-
-                return Ok(())
             } else {
                 return Err(std::io::Error::new(std::io::ErrorKind::Other,
                                                "Invalid Config Options"))
             }
-        }
-        return Ok(())
-
     }
 
     fn modify(&mut self)-> Result<(), std::io::Error>{
