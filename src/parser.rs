@@ -632,7 +632,7 @@ impl ElfParser {
     }
 */
     pub fn modify_segment(&mut self, seg_idx: usize,
-                          file_offset: u64, sec_size: usize,
+                          file_offset: u64, sec_size: Option<usize>,
                           inj_size: usize, bytes: Vec<u8>) -> Result<usize, std::io::Error>{
 
         let _off = self.segments[seg_idx].offset();
@@ -641,22 +641,28 @@ impl ElfParser {
             PHTOffset::SixtyFour(offset)=>{offset},
         };
 
-        //TODO checked add for dding offset and section size
-        let byte_offset = (file_offset).checked_sub(offset);
-        if byte_offset.is_none(){
-            return Err(std::io::Error::new(std::io::ErrorKind::Other, "Invalid byte offset provided"))
+        let b_offset = (file_offset).checked_sub(offset);
+        if b_offset.is_none(){
+            return Err(std::io::Error::new(std::io::ErrorKind::Other,
+                                           "Invalid byte offset provided"))
         }
 
+
         if inj_size < bytes.len(){
-            return Err(std::io::Error::new(std::io::ErrorKind::Other, "Invalid injection size provided"))
+            return Err(std::io::Error::new(std::io::ErrorKind::Other,
+                                           "Invalid injection size provided"))
         }
 
 
         let old_bytes = self.segments[seg_idx].raw_bytes.clone();
-       // let seg_size = old_bytes.len();
 
-        let byte_offset = byte_offset.unwrap() as usize + sec_size;
 
+        let byte_offset: usize;
+        if let Some(sec_size) = sec_size {
+            byte_offset = b_offset.unwrap() as usize + sec_size;
+        } else {
+            byte_offset = b_offset.unwrap() as usize;
+        }
 
         let preserve_first = &old_bytes[0..byte_offset];
         let preserve_last = &old_bytes[byte_offset..];
@@ -666,8 +672,12 @@ impl ElfParser {
 
         self.segments[seg_idx].set_bytes(new_bytes.clone());
         self.segments[seg_idx].increase_size(bytes.len() as u64);
-        Ok(file_offset as usize + sec_size)
 
+        if let Some(sec_size) = sec_size {
+            return  Ok(file_offset as usize + sec_size)
+        } else {
+            return Ok(file_offset as usize)
+        }
     }
 
     pub fn update_sec_header(&mut self,name: Option<String>, index: Option<usize>,

@@ -35,11 +35,8 @@ pub trait DedElf {
 
 impl DedElf for Elf {
     fn new(file: String, cfg: config::DedElfOps) -> Result<Self, std::io::Error> where Self: Sized {
-
-        let parser = parser::ElfParser::new(file)?;
-
         Ok(Elf {
-            parser: parser,
+            parser:  parser::ElfParser::new(file)?,
             ops: cfg,
         })
     }
@@ -54,7 +51,7 @@ impl DedElf for Elf {
                 self.inject()?;
             }
             None => {
-                println!("No injection options specified");
+               // println!("No injection options specified");
             }
         };
         match &self.ops.modify {
@@ -63,7 +60,7 @@ impl DedElf for Elf {
                 self.modify()?;
             }
             None => {
-                println!("No modification options specified");
+               // println!("No modification options specified");
             }
         };
 
@@ -72,97 +69,99 @@ impl DedElf for Elf {
 
     fn inject(&mut self)-> Result<(), std::io::Error> {
         if let Some(inj) = &self.ops.injection {
+            if let Some(section) = inj.get_extend() {
+                let size = inj.get_size();
+                // let section = ".text".to_string();//inj.get_extend();
+                let entry = inj.get_entry();
+                let mut tree_segs = vec![];
 
-            println!("Injection mode!!!!");
+                for i in 0..self.parser.segments.len() {
+                    let _left = self.parser.segments[i].offset();
 
-            let size = inj.get_size();
-            let section = inj.get_extend();
-            let entry = inj.get_entry();
-            //let file = inj.get_file();
+                    let left: u64 = match _left {
+                        PHTOffset::ThirtyTwo(left) => { left as u64 },
+                        PHTOffset::SixtyFour(left) => { left },
+                    };
 
-           // let total_size = self.parser.size() as u64;
+                    let right = left + self.parser.segments[i].file_size() as u64;
+                    tree_segs.push((left..right, i as u64));
+                }
 
-            let mut tree_segs = vec![];
+                let tree: intervaltree::IntervalTree<u64, u64> = tree_segs.iter().cloned().collect();
 
-            for i in 0..self.parser.segments.len() {
-                let _left = self.parser.segments[i].offset();
+                let off = self.parser.get_section_offset_by_name(section.as_str());
 
-                let left: u64 = match _left {
-                    PHTOffset::ThirtyTwo(left) => { left as u64 },
-                    PHTOffset::SixtyFour(left) => { left },
+                if off.is_none() {
+                    return Err(std::io::Error::new(std::io::ErrorKind::Other,
+                                                   "Invalid Extend Section Entered"))
+                }
+
+                let offset = *off.unwrap();
+                let mut sec_size = 0;
+
+                for i in 0..self.parser.sections.len() {
+                    //TODO resolve this
+                    if self.parser.sections[i].name() == section {
+                        sec_size = self.parser.sections[i].size() as usize;
+                        break;
+                    }
+                }
+
+                let point: Vec<u64> = tree
+                    .query_point(offset as u64)
+                    .map(|x| x.value)
+                    .collect();
+
+                let inj_file = self.ops.get_inj_file();
+                if inj_file.is_none() {
+                    return Err(std::io::Error::new(std::io::ErrorKind::Other,
+                                                   "No file provided, exiting"))
+                }
+                let inj_file = inj_file.unwrap();
+                let mut fp = match File::open(inj_file.clone()) {
+                    Err(why) => {
+                        println!("Could not open target injection file: {}: {}",
+                                 inj_file, why.description());
+                        return Err(why)
+                    },
+                    Ok(fp) => fp,
                 };
 
-                let right = left + self.parser.segments[i].file_size() as u64;
-                tree_segs.push((left..right, i as u64));
-            }
 
-            let tree: intervaltree::IntervalTree<u64, u64> = tree_segs.iter().cloned().collect();
+                let inj_bytes = parser::read_input(&mut fp)?;
 
-            let off = self.parser.get_section_offset_by_name(section.as_str());
+                let _inj_site = self.parser.modify_segment(point[0] as usize,
+                                                           offset as u64,
+                                                           Some(sec_size),
+                                                           size,
+                                                           inj_bytes.to_vec())?;
 
-            if off.is_none() {
-                return Err(std::io::Error::new(std::io::ErrorKind::Other,
-                                               "Invalid Extend Section Entered"))
-            }
+                self.parser.update_segment_offsets(point[0], size as u64);
 
-            let offset = *off.unwrap();
-            let mut sec_size = 0;
+                self.parser.increase_sht_offset(size as u64)?;
 
-            for i in 0..self.parser.sections.len() {
-                if self.parser.sections[i].name() == section {
-                    println!("Setting sec size!");
-                    sec_size = self.parser.sections[i].size() as usize;
+                //TODO NEED TO MAKE AN INTERVAL TREE OF THE SECTONS AS WELL FOR THE BYTE OFFSET OPTION
+                self.parser.update_secheader_offsets(section, size as u64);
+                // let old_entry = self.parser.header.entry();
 
-                    break;
+                if let Some(entry) = entry {
+                    self.parser.header.update_exec_header("e_entry".to_string(),
+                                                          entry as u64,
+                                                          None)?;
                 }
-            }
+                return Ok(())
+            } else if let Some(offset) = inj.get_offset() {
 
-            let point: Vec<u64> = tree
-                .query_point(offset as u64)
-                .map(|x| x.value)
-                .collect();
 
-            let inj_file = self.ops.get_inj_file();
-            if inj_file.is_none() {
+
+                return Ok(())
+            } else {
                 return Err(std::io::Error::new(std::io::ErrorKind::Other,
-                                               "No file provided, exiting"))
+                                               "Invalid Config Options"))
             }
-            let inj_file = inj_file.unwrap();
-            let mut fp = match File::open(inj_file.clone()) {
-                Err(why) => {
-                    println!("Could not open target injection file: {}: {}",
-                             inj_file, why.description());
-                    return Err(why)
-                },
-                Ok(fp) => fp,
-            };
-
-
-            let inj_bytes = parser::read_input(&mut fp)?;
-
-            let _inj_site = self.parser.modify_segment(point[0] as usize,
-                                                      offset as u64,
-                                                      sec_size,
-                                                      size,
-                                                      inj_bytes.to_vec())?;
-
-            self.parser.update_segment_offsets(point[0], size as u64);
-
-            self.parser.increase_sht_offset(size as u64)?;
-
-            self.parser.update_secheader_offsets(section, size as u64);
-           // let old_entry = self.parser.header.entry();
-
-            if let Some(entry) = entry {
-                self.parser.header.update_exec_header("e_entry".to_string(),
-                                                      entry as u64,
-                                                      None)?;
-            }
-            return Ok(())
-        } else {
-            return Err(std::io::Error::new(std::io::ErrorKind::Other,
-                                           "Invalid Config Options"))
         }
+        return Ok(())
+
     }
 
     fn modify(&mut self)-> Result<(), std::io::Error>{
@@ -438,9 +437,10 @@ impl DedElf for Elf {
 }
 
 /*
-* Create the generic Elf object that implements the DedElf trait
-* Perform the requested injection and/or modifications
-* Write the modified bytes to the provided outfile
+* run: perform the requested operations on the input elf.
+* 1. Create the generic Elf object that implements the DedElf trait
+* 2. Perform the requested injection and/or modifications
+* 3. Write the modified bytes to the provided outfile
 */
 pub fn run(file: String, ops: config::DedElfOps, outfile: String) -> Result<(), std::io::Error> {
     let mut ded_elf: Elf = DedElf::new(file, ops)?;

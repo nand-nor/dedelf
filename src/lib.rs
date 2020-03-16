@@ -3,6 +3,8 @@
 #![feature(arbitrary_enum_discriminant)]
 
 extern crate byteorder;
+extern crate intervaltree;
+extern crate argparse;
 
 pub mod config;
 pub mod header;
@@ -23,12 +25,12 @@ pub fn display_useage() {
     println!("\
 \nUseage:   {}   [MODE]  [INFILE]  ...  [OUTPUT]  [OPTIONS] ... \n\
 \nMODES: \n\
-\t-i, --inject:\n\
+\tinject:\n\
 \t\tinject mode requires minimum 2 file arguments (in this order):\n\
-\t\t<file to modify> <file to inject> may be optionally followed \n\
+\t\t<file to modify> -i <file to inject> may be optionally followed \n\
 \t\tby specifying output mode along with desired outfile name, \n\
 \t\tfollowed by any combination of the 3 options listed below.\n\
-\t-m, --modify: \n\
+\tmodify: \n\
 \t\tmodify mode requires the following specifications: the file \n\
 \t\tto modify, followed by the header type to modify: \n\
 \t\t\t`exec_header`\n\
@@ -47,7 +49,7 @@ pub fn display_useage() {
 \t\tcontents to. If not specified, the default of `_inj` \n\
 \t\tappended to the input file name will be used. \n\
 \t\tOutput may be specified for either inject or modify mode. \n\
-\nOPTIONS:\n\
+\nInjection Options:\n\
 \t-s <size in base 16>\n\
 \t\tSet the size of the created injection \n\
 \t\tsite to the specified size in bytes, rounding up to the\n\
@@ -63,11 +65,11 @@ pub fn display_useage() {
 \t\t site starts at byte offset 0x1000, then the entry point \n\
 \t\tin the executive header will be modified to be 0x1010\n\
 \nExamples:\n\
-\n{} -m path/to/target/file exec_header eh_entry 0x50250 \n\
+\n{} modify path/to/target/file -m exec_header -f eh_entry -r 0x50250 \n\
 \tThis command will modify the entry point in the executive header\n\
 \tto byte offset 0x50250 and write the modified file to\n\
 \tpath/to/target/file_inj\n\
-\n{} -i path/to/target path/to/inj_bytes -e 0x500 -s 0x2000 -p .rodata\n\
+\n{} inject path/to/target -i path/to/inj_bytes -e 0x500 -s 0x2000 -p .rodata\n\
 \tThis command will inject the target file wiith the bytes contained\n\
 \twithin injection_bytes, set the section to modify to `.rodata`,\n\
 \tset the  size of the injection bytes to 0x2000, and will modify\n\

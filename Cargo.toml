@@ -8,6 +8,7 @@ edition = "2018"
 byteorder = "*"
 #memmem = "*"  may want to search for byte strings at some point
 intervaltree = "0.2.5"
+argparse = "0.2.2"
 
 [[bin]]
 name = "dedelf"

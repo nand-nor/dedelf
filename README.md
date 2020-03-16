@@ -8,7 +8,7 @@ DEDelf is a Rust-based ELF utility similar to `elfedit`, but with more options.
 Use DEDelf to:
 
     1. Modify and Add ELF headers:
-        - Modify any executive header field
+        - Modify any field in the executive header 
         - Modify any field in a specified section header
         - Modify any field in a specified program header
         - Add new sections / section headers
@@ -157,7 +157,7 @@ Optionally, a file to write modifications to may be provided as such:
 
 ## Config file useage ##
 
-NOTE: This functionality does not yet exist, but eventually there will be a .json parser that can pull all of the configuration details and populate the required ops fields. 
+**NOTE: This functionality does not yet exist in full! Eventually there will be a .json parser that can pull all of the configuration details and populate the required ops fields.** 
 
 Specify the use of a config file with the `-f` or `--file-config` option.
  
