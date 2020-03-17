@@ -47,8 +47,7 @@ To replace the bytes in the `.text` section, use the`--overwrite` option as such
 Size restrictions: In this case, the bytes to inject must be less than or equal to the number of bytes to 
 overwrite. In the less-than case, the remaining portion will be overwritten with 0s. In
 both the overwrite and append-to-end-of-section byte injection cases, the total size of the file containing injection bytes must not be larger than 0x1000 bytes. Use the `-s` 
-option to specify a total byte size, bearing in mind that this value must be page aligned, otherwise it will be
-rounded to the next highest page size. 
+option to specify a total byte size, bearing in mind that this value must be page aligned. 
 
 ### Modification Mode ###
 
