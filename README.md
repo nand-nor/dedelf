@@ -1,6 +1,6 @@
 # DEDelf: Deep elf EDitor #
 
-### NOTE: DEDelf is a Work-In-Progress. See below for current working status ##
+### NOTE: DEDelf is a Work-In-Progress and is intended for research purposes only. See below for current working status ##
 
 ## Description ##
 
@@ -213,16 +213,15 @@ big endian x86 and x86-64, etc.)
     [x] Exec Header modification 
     [x] Section header modification
     [x] Program header modification
-    [ ] Adding new segments & program header entry
-    [ ] Adding new sections & section header entry
-    [ ] Configuration file parsing
     [x] Helper utility for trimming byte slices for injection testing
+    [ ] Adding new segments & program header entry (see issue #3)
+    [ ] Adding new sections & section header entry (see issue #4)
+    [ ] Configuration file parsing (see issue #5)
 
+## Future Work / Possible Enhancements #
 
-## At some point may also add options for... #
-
-    [ ] Modifying symbol entries and associated string tables
+    [ ] Moodifying symbol entries and associated string tables
     [ ] Modifying rel/rela entries
     [ ] Search for specific byte patterns of a certain size & inject / overwrite that point
     [ ] Output detailed ELF info organized by valid condifuration/modification options
-
+    [ ] Option to patch additional bytes at end of injection to jump back to original entry point (as of right now the user is expected to encode this functionality within injected byte slice)
