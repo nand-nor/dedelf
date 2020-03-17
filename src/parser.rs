@@ -582,12 +582,13 @@ impl ElfParser {
         }
     }
 
-
+    /* Change the sht offset completely */
     pub fn update_sht_offset(&mut self, new_offset: u64)-> Result<(), std::io::Error>{
         self.header.update_exec_header("e_shoff".to_string(), new_offset, None)?;
         Ok(())
     }
 
+    /* Increase sht offset by a fixed amount */
     pub fn increase_sht_offset(&mut self, by_size: u64) -> Result<(), std::io::Error>{
         let old_sht_offset = match self.header.sht_offset() {
             SHTOffset::ThirtyTwo(offset)=>{
@@ -603,6 +604,9 @@ impl ElfParser {
                                        None)?;
         Ok(())
     }
+
+
+
 /*
     pub fn change_exec_type(&mut self, edit_type: String,
                             replace: String,)-> Result<(), std::io::Error>{
@@ -723,6 +727,109 @@ impl ElfParser {
                                            "Invalid segment header index provided"))
         }
 
+        Ok(())
+    }
+
+    pub fn write_segments(&self, file_ptr: &mut File) -> Result<(), std::io::Error> {
+        for i in (0..self.segments.len()).rev() {
+            self.segments[i].write_segment(file_ptr)?;
+        }
+        Ok(())
+    }
+
+
+    pub fn write_exec_header(&self, file_ptr: &mut File) -> Result<(), std::io::Error> {
+        self.header.write_exec_header(file_ptr)?;
+        Ok(())
+    }
+
+    pub fn write_header_tables(&self, file_ptr: &mut File) -> Result<(), std::io::Error> {
+        let sht_offset = match self.header.sht_offset() {
+            SHTOffset::ThirtyTwo(off) => {
+                off as u64
+            }
+            SHTOffset::SixtyFour(off) => {
+                off
+            }
+        };
+
+        let pht_offset = match self.header.pht_offset() {
+            PHTOffset::ThirtyTwo(off) => {
+                off as u64
+            }
+            PHTOffset::SixtyFour(off) => {
+                off
+            }
+        };
+
+        file_ptr.seek(SeekFrom::Start(sht_offset))?;
+
+        for sec in &self.sections {
+            match &sec.SH {
+                SecHeader::ThirtyTwo(secheader) => {
+                    match self.header.data {
+                        EXEC::EI_DATA::ELFDATA2LSB => {
+                            secheader.write_sec_header::<LittleEndian>(file_ptr)?;
+                        }
+                        EXEC::EI_DATA::ELFDATA2MSB => {
+                            secheader.write_sec_header::<BigEndian>(file_ptr)?;
+                        }
+                        _ => return Err(std::io::Error::new(std::io::ErrorKind::Other,
+                                                            "Cant write Elf"))
+                    }
+                }
+                SecHeader::SixtyFour(secheader) => {
+                    match self.header.data {
+                        EXEC::EI_DATA::ELFDATA2LSB => {
+                            secheader.write_sec_header::<LittleEndian>(file_ptr)?;
+                        }
+                        EXEC::EI_DATA::ELFDATA2MSB => {
+                            secheader.write_sec_header::<BigEndian>(file_ptr)?;
+                        }
+                        _ => return Err(std::io::Error::new(std::io::ErrorKind::Other,
+                                                            "Cant write Elf"))
+                    }
+                }
+            }
+        }
+
+        file_ptr.seek(SeekFrom::Start(pht_offset))?;
+
+        for seg in &self.segments {
+            match &seg.PH {
+                ProgHeader::ThirtyTwo(progheader) => {
+                    match self.header.data {
+                        EXEC::EI_DATA::ELFDATA2LSB => {
+                            progheader.write_prog_header::<byteorder::LittleEndian>(file_ptr)?;
+                        }
+                        EXEC::EI_DATA::ELFDATA2MSB => {
+                            progheader.write_prog_header::<byteorder::BigEndian>(file_ptr)?;
+                        }
+                        _ => return Err(std::io::Error::new(std::io::ErrorKind::Other,
+                                                            "Cant write Elf"))
+                    }
+                }
+                ProgHeader::SixtyFour(progheader) => {
+                    match self.header.data {
+                        EXEC::EI_DATA::ELFDATA2LSB => {
+                            progheader.write_prog_header::<byteorder::LittleEndian>(file_ptr)?;
+                        }
+                        EXEC::EI_DATA::ELFDATA2MSB => {
+                            progheader.write_prog_header::<byteorder::BigEndian>(file_ptr)?;
+                        }
+                        _ => return Err(std::io::Error::new(std::io::ErrorKind::Other,
+                                                            "Cant write Elf"))
+                    }
+                }
+            }
+        }
+        Ok(())
+    }
+
+    pub fn write_sections(&self, file_ptr: &mut File) -> Result<(), std::io::Error> {
+        for sec in &self.sections {
+            sec.write_section(file_ptr)?;
+        }
         Ok(())
     }
 }
