@@ -4,7 +4,7 @@
 
 ## Description ##
 
-DEDelf is a Rust-based ELF utility similar to `elfedit`, but with more options. 
+DEDelf is an ELF binary utility implemented in Rust, and intended to have utility similar to `elfedit` but with many more options. 
 Use DEDelf to:
 
     1. Modify and Add ELF headers:
@@ -13,28 +13,55 @@ Use DEDelf to:
         - Modify any field in a specified program header
         - Add new sections / section headers
         - Add new segments / program headers
-    2. Patch/Inject bytes within existing sections/segments
-        - Patch additional bytes into to existing segments
+    2. Inject bytes within existing sections/segments
+        - Inject additional bytes into to existing segments
         - Overwrite/Replace bytes within existing segments
 
 ## Command Line Useage ##
 
 ### Injection Mode ###
 
-To specify injection mode, use `-i` or `--inject`, followed by `path/to/infile` `/path/to/injection_bytes`. 
+To specify injection mode, use `inject` as a positional argument, followed by `path/to/infile`, then using `-i` to 
+specify the location to read injection bytes from. 
 Optionally provide: 
 1. `-p <name>`   : section name to place the bytes at the end of (default section is the `.text` section, assuming the infile has such a section. If not then the bytes will be ? (TODO))
 2. `-b <offset>` : byte offset to inject bytes at (cannot be specified with `-p` option)
 3. `-s <size>`   : page-aligned size (in hex) of injection bytes (default size is 0x1000)
 4. `-e <entry>`  : new entry point (in hex) to modify the exec header with (default is no entry modification)
-5. `-r`          : replace the bytes of the entire section, rather than appending injection bytes to the end of it.
+5. `--overwrite` : replace the bytes of the entire section, rather than appending injection bytes to the end of it. **Note: currently no support for when supplied with the `-b` option (will be ignored)**.
 6. `-o <outfile>`: filename to write modified bytes to (default is to copy the infile name and append `_inj` to the string).
 
+The bare minimum commands for injection mode are:
+```
+ dedelf inject <path/to/infile> -i <path/to/injection-bytes> 
+```
+With these provided command line arguments, the infile will be injected with the bytes of the file specified by the `-i`
+option with the following default values: at the end of the `.text` section, of a total size of `0x1000` bytes, and written
+to `path/to/infile_inj`. The entry point will not be modified. 
+
+To replace the bytes in the `.text` section, use the`--overwrite` option as such:
+
+```
+ dedelf inject <path/to/infile> -i <path/to/injection-bytes> --overwrite
+```
+Size restrictions: In this case, the bytes to inject must be less than or equal to the number of bytes to 
+overwrite. In the less-than case, the remaining portion will be overwritten with 0s. In
+both the overwrite and append-to-end-of-section byte injection cases, the total size of the file containing injection bytes must not be larger than 0x1000 bytes. Use the `-s` 
+option to specify a total byte size, bearing in mind that this value must be page aligned, otherwise it will be
+rounded to the next highest page size. 
 
 ### Modification Mode ###
 
-To specify modification mode, use `-m` or `--modify`, followed by a file to modify, a valid modification type, 
-a valid field, a valid replacement value, and others as needed. Valid modification types are as follows:
+To specify modification mode, use `modify` as a positional argument, followed by a file to modify, then use `-m` to 
+specify a valid modification type, `-f` to specify a valid header field, `-r` to specify a valid replacement value, 
+and, for section and program header modifications, specify which header by `-p` and providing either an index, in hex, 
+for both program and section headers, or a valid section name (for just section header modifications). 
+
+```
+ dedelf modify <path/to/infile> -m <modification-type> [-p <index or name>] -f <header-field> -r <replacement> [-o <path/to/outfile>]
+```
+
+Valid modification types and valid fields are described as follows:
 
 #### Executive header modifications ####
 
@@ -69,9 +96,9 @@ replacements, use the values defined in ELF specification as found in `elf(5)` (
 For example, the following commandline options for modification are valid:
 
  ```
- dedelf -m path/to/infile exec_header EI_CLASS ELFCLASS32
- dedelf -m path/to/infile exec_header EI_DATA ELFDATA2MSB
- dedelf -m path/to/infile exec_header e_shoff 0x40100
+ dedelf modify path/to/infile -m exec_header -f EI_CLASS -r ELFCLASS32
+ dedelf modify path/to/infile -m exec_header -f EI_DATA -r ELFDATA2MSB
+ dedelf modify path/to/infile -m exec_header -f e_shoff -r 0x40100
 ```
 
 The first command changes the file's class to 32 bits. The second changes the files data to big endian. The last command
@@ -104,8 +131,8 @@ For fields that are not constrained by defined constants, provide all numeric va
 For example, the following args are both valid and will perform the same modification or changing the section 
 type of the `.text` section to type `SHT_RELA`:
 ```
-dedelf -m path/to/infile sec_header .text sh_type SHT_RELA
-dedelf -m path/to/infile sec_header 0xa sh_type SHT_RELA
+dedelf modify path/to/infile -m sec_header -p .text -f sh_type -r SHT_RELA
+dedelf modify path/to/infile -m sec_header -p 0xa -f sh_type -r SHT_RELA
 ``` 
 
 where 0xa is the index of the `.text` section within the section header table. 
@@ -137,12 +164,11 @@ if updating a `p_flags` field to be readable (0x1), writable (0x2), and executab
 For example, the p_type field is defined by constants. To change the 3rd segment in a file to a loadable segment, use 
 the following command:
 ```
-dedelf -m path/to/infile prog_header 0x2 p_type PT_LOAD
+dedelf modify path/to/infile -m prog_header -p 0x2 -f p_type -r PT_LOAD
 ```
 
 
-
-To write the contents to a desired file name, append `-o path/to/outfile`.
+For all subcommands and modes, to write the contents to a desired file name, append `-o path/to/outfile`.
 
 
 `new_sec` : Not yet implemented. Add new section with corresponding entry in the section header table
@@ -182,8 +208,8 @@ big endian x86 and x86-64, etc.)
 ## Current Working Status ##
 
     [x] Byte injection at end of a specified section (input as string)
-    [ ] Byte injection at specified byte offset (input as hex)
-    [ ] Byte injection replacing a section's bytes, rather than being added to the end of a section
+    [x] Byte injection at specified byte offset (input as hex)
+    [x] Byte injection replacing a section's bytes, rather than being added to the end of a section
     [x] Exec Header modification 
     [x] Section header modification
     [x] Program header modification
@@ -197,5 +223,6 @@ big endian x86 and x86-64, etc.)
 
     [ ] Modifying symbol entries and associated string tables
     [ ] Modifying rel/rela entries
+    [ ] Search for specific byte patterns of a certain size & inject / overwrite that point
     [ ] Output detailed ELF info organized by valid condifuration/modification options
 

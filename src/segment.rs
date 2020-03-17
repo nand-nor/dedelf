@@ -61,6 +61,18 @@ impl Segment{
         }
     }
 
+    pub fn increase_vaddr(&mut self, by_size: u64){
+
+        match &mut self.PH{
+            ProgHeader::ThirtyTwo(ph)=>{
+                ph.p_vaddr += by_size as u32
+            },
+            ProgHeader::SixtyFour(ph)=>{
+                ph.p_vaddr += by_size
+            }
+        }
+    }
+
     pub fn increase_size(&mut self, by_size: u64) {
 
         match &mut self.PH{
@@ -110,6 +122,28 @@ impl Segment{
             },
             ProgHeader::SixtyFour(ph)=>{
                 return ph.p_filesz
+            }
+        }
+    }
+
+    pub fn vaddr(&self)->u64{
+        match &self.PH{
+            ProgHeader::ThirtyTwo(ph)=>{
+                return ph.p_vaddr as u64
+            },
+            ProgHeader::SixtyFour(ph)=>{
+                return ph.p_vaddr
+            }
+        }
+    }
+
+    pub fn align(&self)->u64{
+        match &self.PH{
+            ProgHeader::ThirtyTwo(ph)=>{
+                return ph.p_align as u64
+            },
+            ProgHeader::SixtyFour(ph)=>{
+                return ph.p_align
             }
         }
     }

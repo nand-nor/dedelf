@@ -576,9 +576,32 @@ impl ElfParser {
         }
     }
 
+    //TODO need to test cases for increasing vaddr-- if offset and vaddr are no longer congruent,
+    // I have increased the vaddr by the same increase as the offset. Using the example of
+    // injecting 1 page (0x1000 bytes) into the previous segment, assuming it is a LOAD
+    // segment, and the following to-be-changed segment is also LOAD, then I think it makes
+    // sense that the VADDR increases to accommodate that extra page of bytes, but is it
+    // possible that changing the alignment value makes any sense?
     pub fn update_segment_offsets(&mut self, seg_idx: u64, by_size: u64){
         for i in (seg_idx + 1)..self.segments.len() as u64 {
+
+            let old_offset: u64 = match self.segments[i as usize].offset(){
+                PHTOffset::ThirtyTwo(offset)=>{offset as u64},
+                PHTOffset::SixtyFour(offset)=>{offset},
+            };
             self.segments[i as usize].increase_offset(by_size);
+
+            let vaddr = self.segments[i as usize].vaddr();
+            let align =  self.segments[i as usize].align();
+            let offset: u64 = match self.segments[i as usize].offset(){
+                PHTOffset::ThirtyTwo(offset)=>{offset as u64},
+                PHTOffset::SixtyFour(offset)=>{offset},
+            };
+
+
+            if offset % align != vaddr % align && align != 1 && align != 0 {
+                self.segments[i as usize].increase_vaddr(by_size);
+            }
         }
     }
 
@@ -636,7 +659,7 @@ impl ElfParser {
     }
 */
     pub fn modify_segment(&mut self, seg_idx: usize,
-                          file_offset: u64, sec_size: Option<usize>,
+                          file_offset: u64, sec_size: Option<usize>, replace: bool,
                           inj_size: usize, bytes: Vec<u8>) -> Result<usize, std::io::Error>{
 
         let _off = self.segments[seg_idx].offset();
@@ -662,20 +685,46 @@ impl ElfParser {
 
 
         let byte_offset: usize;
+
         if let Some(sec_size) = sec_size {
-            byte_offset = b_offset.unwrap() as usize + sec_size;
+            if replace {
+                byte_offset = b_offset.unwrap() as usize;
+                if bytes.len() > sec_size {
+                    return Err(std::io::Error::new(std::io::ErrorKind::Other,
+                                                   "Invalid injection size provided with overwrite option"))
+                }
+            } else {
+                byte_offset = b_offset.unwrap() as usize + sec_size;
+            }
         } else {
             byte_offset = b_offset.unwrap() as usize;
         }
 
+
         let preserve_first = &old_bytes[0..byte_offset];
-        let preserve_last = &old_bytes[byte_offset..];
+        let mut preserve_last = old_bytes[byte_offset..].to_vec();
+
+        let mut increase_size: u64 = bytes.len() as u64;
+
+        if let Some(sec_size) = sec_size {
+            if replace {
+                //if injection bytes are less than the section size, pad with zeros
+                if bytes.len() < sec_size {
+                    increase_size = sec_size as u64 - bytes.len() as u64;
+                    let mut zeros = vec![0u8;increase_size as usize];
+                    zeros.extend(&preserve_last[bytes.len() +1..]);
+                    preserve_last = zeros;
+                }
+            }
+
+        }
 
         let mut new_bytes = [&preserve_first[..], &bytes[..]].concat();
-        new_bytes.extend(preserve_last);
+        new_bytes.extend(preserve_last.as_slice());
 
         self.segments[seg_idx].set_bytes(new_bytes.clone());
-        self.segments[seg_idx].increase_size(bytes.len() as u64);
+
+        self.segments[seg_idx].increase_size(increase_size);
 
         if let Some(sec_size) = sec_size {
             return  Ok(file_offset as usize + sec_size)

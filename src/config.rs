@@ -385,6 +385,10 @@ impl InjModeOps {
     pub fn get_offset(&self)->Option<u64>{
         self.b_offset
     }
+
+    pub fn get_replace(&self)->bool{
+        self.replace
+    }
 }
 
 #[derive(Clone, Debug)]

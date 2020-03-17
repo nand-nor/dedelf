@@ -67,7 +67,7 @@ impl DedElf for Elf {
             let mut offset: u64 = 0;
             let mut sec_size = None;
             let mut tree_segs = vec![];
-
+            let replace = inj.get_replace();
             /*generate interval tree using segment bytes as bounds*/
             for i in 0..self.parser.segments.len() {
                 let _left = self.parser.segments[i].offset();
@@ -125,7 +125,6 @@ impl DedElf for Elf {
                     .collect();
 
                 section = self.parser.sections[sec_point[0] as usize].name();
-                println!("The name returned is {:?}", section);
             }
 
             let point: Vec<u64> = seg_tree
@@ -153,7 +152,7 @@ impl DedElf for Elf {
             let inj_bytes = parser::read_input(&mut fp)?;
             let _inj_site = self.parser.modify_segment(point[0] as usize,
                                                        offset as u64,
-                                                       sec_size,
+                                                       sec_size, replace,
                                                        size,
                                                        inj_bytes.to_vec())?;
 
