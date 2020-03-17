@@ -57,11 +57,10 @@ pub fn read_input<R>(file_ptr: &mut R) -> Result<Vec<u8>,std::io::Error>
 }
 
 /* TODO make this take just a byte slice! Not the whole byte string
-    *    Also move this out of ElfParser scope?
-    * Given a string table (byte offset) index, return an ascii-readable
-    * string from the table
-    */
-pub fn get_one_name(byte_string: String, val: u32) -> String {
+* Given the string table as a utf8 string and a string table (byte offset) index, return
+* the string at the offset as an ascii-readable, trimmed value
+*/
+pub fn get_strtable_entry(byte_string: String, val: u32) -> String {
     let len = byte_string.len();
     let pos = byte_string[val as usize..len].chars()
         .position(|c| c == '\u{0}')
@@ -72,10 +71,6 @@ pub fn get_one_name(byte_string: String, val: u32) -> String {
 }
 
 impl ElfParser {
-
-
-
-
     pub fn new(infile: String) -> Result<ElfParser, std::io::Error> {
         let mut file_ptr = match File::open(infile) {
             Err(why) => {
@@ -325,7 +320,7 @@ impl ElfParser {
 
         for itr in &mut self.sections {
             let name_idx = itr.name_idx();
-            let name: String = get_one_name(byte_string.clone(), name_idx);
+            let name: String = get_strtable_entry(byte_string.clone(), name_idx);
             //println!("Name! is {:?}", name);
             let offset = itr.offset();
 

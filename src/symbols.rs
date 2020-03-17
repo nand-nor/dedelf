@@ -40,16 +40,16 @@ pub struct Symbol32 {
 * ELF
 */
 impl Symbol32 {
-    pub fn parse_symbol<R, T: ByteOrder>(rdr: &mut R) -> Result<Symbol32, std::io::Error>
+    pub fn parse_symbol<R, B: ByteOrder>(rdr: &mut R) -> Result<Symbol32, std::io::Error>
         where R: Read  {
-        let name = rdr.read_u32::<T>()?;
-        let value = rdr.read_u32::<T>()?;
-        let size = rdr.read_u32::<T>()?;
+        let name = rdr.read_u32::<B>()?;
+        let value = rdr.read_u32::<B>()?;
+        let size = rdr.read_u32::<B>()?;
         let mut info = [0; 1];
         rdr.read_exact(&mut info)?;
         let mut other = [0; 1];
         rdr.read_exact(&mut other)?;
-        let shndx = rdr.read_u16::<T>()?;
+        let shndx = rdr.read_u16::<B>()?;
 
 
         Ok(Symbol32 {
@@ -79,16 +79,16 @@ pub struct Symbol64 {
 * ELF
 */
 impl Symbol64 {
-    pub fn parse_symbol<R, T: ByteOrder>(rdr: &mut R) -> Result<Symbol64, std::io::Error>
+    pub fn parse_symbol<R, B: ByteOrder>(rdr: &mut R) -> Result<Symbol64, std::io::Error>
         where R: Read  {
-        let name = rdr.read_u32::<T>()?;
+        let name = rdr.read_u32::<B>()?;
         let mut info = [0; 1];
         rdr.read_exact(&mut info)?;
         let mut other = [0; 1];
         rdr.read_exact(&mut other)?;
-        let shndx = rdr.read_u16::<T>()?;
-        let value = rdr.read_u64::<T>()?;
-        let size = rdr.read_u64::<T>()?;
+        let shndx = rdr.read_u16::<B>()?;
+        let value = rdr.read_u64::<B>()?;
+        let size = rdr.read_u64::<B>()?;
 
         Ok(Symbol64 {
             st_name: name,
@@ -118,16 +118,16 @@ pub struct DynSymbol32 {
 * ELF
 */
 impl DynSymbol32 {
-    pub fn parse_symbol<R, T: ByteOrder>(rdr: &mut R) -> Result<DynSymbol32, std::io::Error>
+    pub fn parse_symbol<R, B: ByteOrder>(rdr: &mut R) -> Result<DynSymbol32, std::io::Error>
         where R: Read  {
-        let name = rdr.read_u32::<T>()?;
-        let value = rdr.read_u32::<T>()?;
-        let size = rdr.read_u32::<T>()?;
+        let name = rdr.read_u32::<B>()?;
+        let value = rdr.read_u32::<B>()?;
+        let size = rdr.read_u32::<B>()?;
         let mut info = [0; 1];
         rdr.read_exact(&mut info)?;
         let mut other = [0; 1];
         rdr.read_exact(&mut other)?;
-        let shndx = rdr.read_u16::<T>()?;
+        let shndx = rdr.read_u16::<B>()?;
 
         Ok(DynSymbol32 {
             st_name: name,
@@ -156,16 +156,16 @@ pub struct DynSymbol64 {
 * ELF
 */
 impl DynSymbol64 {
-    pub fn parse_symbol<R, T: ByteOrder>(rdr: &mut R) -> Result<DynSymbol64, std::io::Error>
+    pub fn parse_symbol<R, B: ByteOrder>(rdr: &mut R) -> Result<DynSymbol64, std::io::Error>
         where R: Read  {
-        let name = rdr.read_u32::<T>()?;
+        let name = rdr.read_u32::<B>()?;
         let mut info = [0; 1];
         rdr.read_exact(&mut info)?;
         let mut other = [0; 1];
         rdr.read_exact(&mut other)?;
-        let shndx = rdr.read_u16::<T>()?;
-        let value = rdr.read_u64::<T>()?;
-        let size = rdr.read_u64::<T>()?;
+        let shndx = rdr.read_u16::<B>()?;
+        let value = rdr.read_u64::<B>()?;
+        let size = rdr.read_u64::<B>()?;
 
         Ok(DynSymbol64 {
             st_name: name,

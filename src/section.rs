@@ -192,7 +192,8 @@ impl Strtab{
         let data_strs: Vec<String> =
             new_str.split("\u{0}").map(|s| s.to_string()).collect();
 
-        println!("Parsed string! {:?}", data_strs);
+        //TODO have verbose mode? Output this is verbose specified
+        println!("String table entries: {:?}", data_strs);
         Strtab {
             name: name,
             strtab : strtab_t,
