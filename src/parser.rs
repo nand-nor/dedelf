@@ -1,8 +1,6 @@
 use std::error::Error;
-
 use std::fs::File;
-
-use std::io::{Read, Seek, SeekFrom, Write};
+use std::io::{Read, Seek, SeekFrom};
 use std::collections::HashMap;
 use crate::header::*;
 use crate::symbols::*;
@@ -15,11 +13,12 @@ use byteorder::*;
 pub struct ElfParser{
    pub header: ExecutiveHeader,
 
-   pub shtstr_tab: Box<Vec<u8>>,
    pub segments: Vec<Segment>,
    pub sections: Vec<Section>,
 
 
+    //TODO refine these data structures for fast parsing & manipulation of symbols/strings/rel/rela
+    // Right now these are mainly placeholders
     pub sechdrstr: HashMap<String, usize>,
     pub symbols: HashMap<String, usize>,
     pub dynstr: HashMap<String, usize>,
@@ -27,16 +26,22 @@ pub struct ElfParser{
     pub relasym: HashMap<String, usize>,
     pub dynsym: HashMap<String, usize>,
 
-
-    pub sec_offsets: HashMap<String, usize>,
-    pub seg_offsets: HashMap<usize, usize>,
-
-
+    //TODO use in support of more options for modifying/manipulating strings and symbols
     pub string_tables: Vec<Strtab>,
     pub sym_tables: Vec<Symtable>,
     pub dynsym_tables: Vec<DynSymtable>,
 
-    pub dyn_str: Box<Vec<u8>>,
+    //pub shtstr_tab: Box<Vec<u8>>, Dont need-- captured in string_tables vector
+    //pub dyn_str: Box<Vec<u8>>, Dont need-- captured in string_tables vector
+
+
+    //TODO create additional structures to map in O(1) time offsets to names, indexes to offsets,
+    // and others as needed. Lots of possible optimizations, like perhaps storing
+    // segment and section interval trees within this object rather than creating for injection?
+    pub sec_offsets: HashMap<String, usize>,
+    pub seg_offsets: HashMap<usize, usize>,
+
+    //TODO use for testing
     pub size: usize,
 }
 
@@ -51,22 +56,24 @@ pub fn read_input<R>(file_ptr: &mut R) -> Result<Vec<u8>,std::io::Error>
     Ok(buf)
 }
 
-impl ElfParser {
-
-    /* TODO make this take just a byte slice! NOt the whole byte string
-    *    Also move thi sout of ElfParser scope?
+/* TODO make this take just a byte slice! Not the whole byte string
+    *    Also move this out of ElfParser scope?
     * Given a string table (byte offset) index, return an ascii-readable
     * string from the table
     */
-    pub fn get_one_name(byte_string: String, val: u32) -> String {
-        let len = byte_string.len();
-        let pos = byte_string[val as usize..len].chars()
-            .position(|c| c == '\u{0}')
-            .unwrap();
-        let search_str =
-            &byte_string[val as usize..(val as usize + pos) as usize];
-        search_str.to_string()
-    }
+pub fn get_one_name(byte_string: String, val: u32) -> String {
+    let len = byte_string.len();
+    let pos = byte_string[val as usize..len].chars()
+        .position(|c| c == '\u{0}')
+        .unwrap();
+    let search_str =
+        &byte_string[val as usize..(val as usize + pos) as usize];
+    search_str.to_string()
+}
+
+impl ElfParser {
+
+
 
 
     pub fn new(infile: String) -> Result<ElfParser, std::io::Error> {
@@ -84,8 +91,6 @@ impl ElfParser {
             size: 0,
             segments:  Vec::new(),
             sections:  Vec::new(),
-            shtstr_tab:  Box::new(Vec::new()),
-            dyn_str:  Box::new(Vec::new()),
             string_tables: Vec::new(),
             sym_tables:  Vec::new(),
             dynsym_tables:  Vec::new(),
@@ -137,7 +142,6 @@ impl ElfParser {
                                 PH: ProgHeader::ThirtyTwo(header),
                                 raw_bytes: pht_bytes_t.to_vec(),
                             });
-                            //sht.push(SecHeader::ThirtyTwo(header));
                             size as usize
                         }
                         EXEC::EI_DATA::ELFDATA2MSB => {
@@ -206,13 +210,13 @@ impl ElfParser {
         Ok(())
     }
 
+    //TODO add support for stripped ELFs-- right now just exit if no section header names
+    // are found (via names_flag check)
     fn parse_sections<R>(&mut self, file_ptr: &mut R,) -> Result<(), std::io::Error>
         where R: Read + Seek, {
 
-       let mut byte_string: String = " ".to_string();
+        let mut byte_string: String = " ".to_string();
         let mut sht_bytes_t: Vec<u8>;
-
-        let mut sec_file_size = 0;
 
         let mut names_flag = false;
 
@@ -223,26 +227,20 @@ impl ElfParser {
 
         let sh_num = self.header.sh_entry_num();
         let sh_size = self.header.sh_entry_size();
-        //let shstr_offset = sht_offset + (sh_size as u64 * self.header.shstrndx() as u64);
         for i in 0..sh_num {
             let name = " - ";
             let _sh_offset = sht_offset as u64 + (i as u64 * sh_size as u64);
 
             file_ptr.seek(SeekFrom::Start(_sh_offset.into()))?;
-            let sh_type: SH_Type;
 
-            let size = match self.header.class {
+            match self.header.class {
                 EXEC::EI_CLASS::ELFCLASS32 => {
                     match self.header.data {
                         EXEC::EI_DATA::ELFDATA2LSB => {
                             let header: SecHeader32
                                 = SecHeader32::parse_sec32_header::<R, LittleEndian>( file_ptr)?;
-                            sh_type = header.sh_type()?;
-
                             file_ptr.seek(SeekFrom::Start(header.offset().into()))?;
-                            let size = header.size();
-
-                            sht_bytes_t = vec![0; size as usize];
+                            sht_bytes_t = vec![0; header.size() as usize];
                             file_ptr.read_exact(&mut sht_bytes_t)?;
 
                             self.sections.push(Section {
@@ -250,26 +248,22 @@ impl ElfParser {
                                 raw_bytes: sht_bytes_t.to_vec(),
                                 name: name.to_string(),
                             });
-                            size as usize
                         }
                         EXEC::EI_DATA::ELFDATA2MSB => {
                             let header: SecHeader32
                                 = SecHeader32::parse_sec32_header::<R, BigEndian>( file_ptr)?;
-                            sh_type = header.sh_type()?;
 
                             file_ptr.seek(SeekFrom::Start(header.offset().into()))?;
-                            let size = header.size();
-
-                            sht_bytes_t = vec![0; size as usize];
+                            sht_bytes_t = vec![0; header.size() as usize];
                             file_ptr.read_exact(&mut sht_bytes_t)?;
                             self.sections.push(Section {
                                 SH: SecHeader::ThirtyTwo(header),
                                 raw_bytes: sht_bytes_t.to_vec(),
                                 name: name.to_string(),
                             });
-                            size as usize
                         }
-                        _ => return Err(std::io::Error::new(std::io::ErrorKind::Other, "Elf not supported"))
+                        _ => return Err(std::io::Error::new(std::io::ErrorKind::Other,
+                                                            "Elf not supported"))
                     }
                 },
                 EXEC::EI_CLASS::ELFCLASS64 => {
@@ -277,11 +271,8 @@ impl ElfParser {
                         EXEC::EI_DATA::ELFDATA2LSB => {
                             let header: SecHeader64
                                 = SecHeader64::parse_sec64_header::<R, LittleEndian>(file_ptr)?;
-                               sh_type = header.sh_type()?;
                             file_ptr.seek(SeekFrom::Start(header.offset().into()))?;
-                            let size = header.size();
-
-                            sht_bytes_t = vec![0; size as usize];
+                            sht_bytes_t = vec![0; header.size() as usize];
                             file_ptr.read_exact(&mut sht_bytes_t)?;
 
                             self.sections.push(Section {
@@ -289,17 +280,13 @@ impl ElfParser {
                                 raw_bytes: sht_bytes_t.to_vec(),
                                 name: name.to_string(),
                             });
-                            size as usize
                         }
                         EXEC::EI_DATA::ELFDATA2MSB => {
                             let header: SecHeader64
                                 = SecHeader64::parse_sec64_header::<R, BigEndian>(file_ptr)?;
-                            sh_type = header.sh_type()?;
 
                             file_ptr.seek(SeekFrom::Start(header.offset().into()))?;
-                            let size = header.size();
-
-                            sht_bytes_t = vec![0; size as usize];
+                            sht_bytes_t = vec![0; header.size() as usize];
                             file_ptr.read_exact(&mut sht_bytes_t)?;
 
                             self.sections.push(Section {
@@ -307,7 +294,6 @@ impl ElfParser {
                                 raw_bytes: sht_bytes_t.to_vec(),
                                 name: name.to_string(),
                             });
-                            size as usize
                         }
                         _ => return Err(std::io::Error::new(std::io::ErrorKind::Other,
                                                             "Elf not supported"))
@@ -317,14 +303,7 @@ impl ElfParser {
                                                     "Elf not supported"))
             };
 
-            match sh_type {
-                SH_Type::SHT_NOBITS => {},
-                _ => {
-                    sec_file_size += size;
-                }
-            };
-
-
+            /* Parse the section header string table into a utf8 string, for later name assignment*/
             if i == self.header.shstrndx() {
                 let shstrtab_str = String::from_utf8(sht_bytes_t.clone());
                 if shstrtab_str.is_err() {
@@ -337,26 +316,18 @@ impl ElfParser {
         }
 
         if !names_flag {
-            //TODO add injection option to either specify a section name (string) or a byte offset (hex)
-            // bc an elf may have symbols stripped
+            //TODO add support for searching by index rather than name, in case ELF has been
+            // stripped! For now just exit as it will potentially mess up down-stream functionality if
+            // no stirng names ar eprovided
             return Err(std::io::Error::new(std::io::ErrorKind::Other,
                                            "No section header string names available, exiting with error"))
         }
 
         for itr in &mut self.sections {
             let name_idx = itr.name_idx();
-            let name: String = ElfParser::get_one_name(byte_string.clone(), name_idx);
-            println!("Name! is {:?}", name);
+            let name: String = get_one_name(byte_string.clone(), name_idx);
+            //println!("Name! is {:?}", name);
             let offset = itr.offset();
-
-            match name.as_str() {
-                ".dynstr" => {
-                    //dynstrtab = Box::new(sht_bytes_t.to_vec());//.to_owned());
-                },
-                ".strtab" => {}
-                ".symtab" => {}
-                _ => {}
-            }
 
             self.sec_offsets.insert(name.clone(), offset as usize);
 
@@ -374,14 +345,12 @@ impl ElfParser {
                                                                  name.clone(),
                                                                  self.header.data,
                                                                  self.header.class)?;
-                    println!("The symtab! {:?}", symtab);
-
-
+                    //println!("The symtab! {:?}", symtab);
                     self.sym_tables.push(symtab);
                     self.symbols.insert(name, index);
                 }
                 SH_Type::SHT_DYNSYM => {
-                    println!("Inserted section type DynSym with name {:?} and index {:?}", name.clone(), index);
+                   // println!("Inserted section type DynSym with name {:?} and index {:?}", name.clone(), index);
                     file_ptr.seek(SeekFrom::Start(itr.offset().into()))?;
 
 
@@ -391,17 +360,14 @@ impl ElfParser {
                                                                          name.clone(),
                                                                          self.header.data,
                                                                          self.header.class)?;
-                    println!("The dynsymtab! {:?}", dynsymtab);
+                  //  println!("The dynsymtab! {:?}", dynsymtab);
 
 
                     self.dynsym_tables.push(dynsymtab);
                     self.dynsym.insert(name, index);
                 }
                 SH_Type::SHT_STRTAB => {
-                    // if name == ".shstrtab" {
-                    //       shname_mapping.insert(name, index);
-                    //}
-                    println!("Creating string table with name {:?} and index {:?}", name.clone(), index);
+               //     println!("Creating string table with name {:?} and index {:?}", name.clone(), index);
                     let bytes = itr.raw_bytes();
                     let strtab = Strtab::parse_str_table(name.clone(), bytes);
                     self.string_tables.push(strtab);
@@ -418,32 +384,29 @@ impl ElfParser {
                     self.dynsym.insert(name, index);
                 }
                 SH_Type::SHT_HASH => {
-                    self.symbols.insert(name, index);
+                    //TODO need to determine what kind of functionality to support for such sections
+                  //  self.symbols.insert(name, index);
                 }
                 SH_Type::SHT_GNU_HASH => {
-                    //TODO need better place & also support for this section
-                    self.symbols.insert(name, index);
+                    //TODO need support for this section
+                  //  self.symbols.insert(name, index);
                 }
-                _ => {
-                   // println!("section type {:?} (!) found, with name {:?} and link index {:?}", sh_type, name.clone(), index);
-                }
+                _ => {}
             }
         }
 
+        //TODO add support for more manipulation/modification of symbols
         for symtab in &self.sym_tables {
 
-            //println!("Associated section name is {:?}, link is {:?}", symtab.sec_name, symtab.section_idx);
-
             let symbytes = self.sections[symtab.section_idx as usize].raw_bytes().clone();
-            let ent_size = self.sections[symtab.section_idx as usize].entsize();
-            let syms = String::from_utf8(symbytes.clone());//.unwrap();
+            let _ent_size = self.sections[symtab.section_idx as usize].entsize();
+            let syms = String::from_utf8(symbytes.clone());
             if syms.is_err() {
-                println!("Error parsing symbols");
+                //println!("Error parsing symbols");
                 break;
             }
             let syms = syms.unwrap();
             let len = syms.len();
-            println!("Associated section name is {:?}, entsize is {:?}, link is {:?} and number of bytes in section is {:?}", symtab.sec_name, ent_size, symtab.section_idx, symbytes.len());
 
             let mut output_vec: Vec<String> = Vec::new();
             for val in symbytes.clone() {
@@ -457,94 +420,74 @@ impl ElfParser {
                 output_vec.push(search_str.to_string());
             }
 
-            println!("strings...splt {:?}, versus {:?}", syms.split("\u{0}").collect::<Vec<_>>(), syms);
-
             for i in 0..symtab.entries.len() {
-                let (sht_idx, tab_idx, sym_size) = match &symtab.entries[i] {
+                let (_sht_idx, tab_idx, _sym_size) = match &symtab.entries[i] {
                     Symbol::ThirtyTwo(sym) => (sym.st_shndx as u64, sym.st_name as u64, sym.st_size as u64),
                     Symbol::SixtyFour(sym) => (sym.st_shndx as u64, sym.st_name as u64, sym.st_size as u64)
                 };
-                //let tab_idx = symtab.entries[i].st_name;
-                //let sym_size = symtab.entries[i].st_size;
 
                 if tab_idx == 0 {
-                    println!("Symbol has no name or no known size");
+                   // println!("Symbol has no name or no known size");
 
                     continue
-                } else if tab_idx as usize >= symbytes.len() {//} ||tab_idx as usize + sym_size as usize > symbytes.len() {
-                    println!("Index is larger than the length of the bytes! Table index: {:?}, and tab + symsize {:?} and bytes len {:?}", tab_idx, tab_idx + sym_size, symbytes.len());
+                } else if tab_idx as usize >= symbytes.len() {
                     continue
                 } else {
-
-                    //let symbytes = sections[sht_idx as usize].raw_bytes().clone();
 
                     let symbol_name = String::from_utf8(symbytes[tab_idx as usize..].to_vec());
 
                     if symbol_name.is_err() {
-                        println!("Error parsing symbol");
+                        //println!("Error parsing symbol");
                         break;
                     }
 
+                    //TODO eventually will support
                     let symbol_name = symbol_name.unwrap();
-                    let name = symbol_name.split("\u{0}").collect::<Vec<_>>()[0];
+                    let _name = symbol_name.split("\u{0}").collect::<Vec<_>>()[0];
 
-                    //ElfParser::get_one_name(syms.clone(), tab_idx as u32);
-                    println!("Symbol name is {:?} table index is {:?}", name, tab_idx);
+                    //println!("Symbol name is {:?} table index is {:?}", name, tab_idx);
 
-                    //ElfParser::get_one_name(syms.clone(), tab_idx as u32);
-                    // println!("Symbol name is {:?} table index is {:?}, size is {:?}", symbol_name.unwrap(), tab_idx, sym_size);
                 }
             }
         }
 
-
+        //TODO add support for manipulating/modifying dynamic symbols
         for symtab in &self.dynsym_tables {
 
-            //println!("Associated section name is {:?}, link is {:?}", symtab.sec_name, symtab.section_idx);
-
             let symbytes = self.sections[symtab.section_idx as usize].raw_bytes().clone();
-            let ent_size = self.sections[symtab.section_idx as usize].entsize();
+            let _ent_size = self.sections[symtab.section_idx as usize].entsize();
             let syms = String::from_utf8(symbytes.clone());//.unwrap();
             if syms.is_err() {
-                println!("Error parsing symbols");
+               // println!("Error parsing symbols");
                 break;
             }
-            let syms = syms.unwrap();
-
-            println!("Associated section name is {:?}, entsize is {:?}, link is {:?} and number of bytes in section is {:?}", symtab.sec_name, ent_size, symtab.section_idx, symbytes.len());
+            let _syms = syms.unwrap();
 
 
             for i in 0..symtab.entries.len() {
-                let (sht_idx, tab_idx, sym_size) = match &symtab.entries[i] {
+                let (_sht_idx, tab_idx, _sym_size) = match &symtab.entries[i] {
                     DynSymbol::ThirtyTwo(sym) => (sym.st_shndx as u64, sym.st_name as u64, sym.st_size as u64),
                     DynSymbol::SixtyFour(sym) => (sym.st_shndx as u64, sym.st_name as u64, sym.st_size as u64)
                 };
-                //let tab_idx = symtab.entries[i].st_name;
-                //let sym_size = symtab.entries[i].st_size;
-
-                if tab_idx == 0 {
-                    println!("Symbol has no name or no known size");
+                 if tab_idx == 0 {
+      //              println!("Symbol has no name or no known size");
 
                     continue
-                } else if tab_idx as usize >= symbytes.len() {//||tab_idx as usize + sym_size as usize > symbytes.len() {
-                    println!("Index is larger than the length of the bytes! Table index: {:?}, and tab + symsize {:?} and bytes len {:?}", tab_idx, tab_idx + sym_size, symbytes.len());
+                } else if tab_idx as usize >= symbytes.len() {
                     continue
                 } else {
-
-                    //let symbytes = sections[sht_idx as usize].raw_bytes().clone();
-
                     let symbol_name = String::from_utf8(symbytes[tab_idx as usize..].to_vec());
 
                     if symbol_name.is_err() {
-                        println!("Error parsing symbol");
+                    //    println!("Error parsing symbol");
                         break;
                     }
 
+                     //TODO store these in hashmap for O(1) symbol lookup!
                     let symbol_name = symbol_name.unwrap();
-                    let name = symbol_name.split("\u{0}").collect::<Vec<_>>()[0];
+                    let _name = symbol_name.split("\u{0}").collect::<Vec<_>>()[0];
 
-                    //ElfParser::get_one_name(syms.clone(), tab_idx as u32);
-                    println!("Symbol name is {:?} table index is {:?}", name, tab_idx);
+                    //println!("Symbol name is {:?} table index is {:?}", name, tab_idx);
                 }
             }
         }
@@ -584,11 +527,6 @@ impl ElfParser {
     // possible that changing the alignment value makes any sense?
     pub fn update_segment_offsets(&mut self, seg_idx: u64, by_size: u64){
         for i in (seg_idx + 1)..self.segments.len() as u64 {
-
-            let old_offset: u64 = match self.segments[i as usize].offset(){
-                PHTOffset::ThirtyTwo(offset)=>{offset as u64},
-                PHTOffset::SixtyFour(offset)=>{offset},
-            };
             self.segments[i as usize].increase_offset(by_size);
 
             let vaddr = self.segments[i as usize].vaddr();

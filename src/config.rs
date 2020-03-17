@@ -1,8 +1,5 @@
-use std::env;
 use std::str::FromStr;
-use std::process::exit;
-use std::io::{stdout, stderr};
-use argparse::{ArgumentParser, StoreTrue, StoreFalse, Store, List, StoreOption};
+use argparse::{ArgumentParser, StoreTrue, Store, StoreOption};//,StoreFalse, List};
 
 /* Default injection mode values */
 const INJ_DEFAULT_SIZE: usize = 0x1000;
@@ -95,7 +92,6 @@ pub fn parse_args(infile: &mut String,
     }
 
 
-    let copy = inj_file.to_string();
     match default_mode{
         Mode::INJECT => {
             if extend == None && offset == None {
@@ -103,7 +99,6 @@ pub fn parse_args(infile: &mut String,
                 extend = Some(INJ_DEFAULT_EXT.unwrap().to_string());
             }
             *options = DedElfOps::parse_inj_ops(size, extend, entry, replace, offset, inj_file)?;
-            println!("OK options are: {:?}", *options);
             return Ok(())
         }
         Mode::MODIFY => {
@@ -111,9 +106,8 @@ pub fn parse_args(infile: &mut String,
             return Ok(())
         }
         _ => {
-            println!("Invalid CLI mode provided");
             return Err(std::io::Error::new(std::io::ErrorKind::Other,
-                                           ("Invalid options provided")))
+                                           "Invalid CLI options provided"))
         }
 
     }
@@ -148,7 +142,7 @@ impl DedElfOps {
             let check = usize::from_str_radix(trimmed, 16);
             if check.is_err() {
                 return Err(std::io::Error::new(std::io::ErrorKind::Other,
-                                               ("Invalid injection mode options (size) provided")))
+                                               "Invalid injection mode options (size) provided"))
 
             }
             new_size = check.unwrap();
@@ -159,7 +153,7 @@ impl DedElfOps {
             let check = u64::from_str_radix(trimmed, 16);
             if check.is_err() {
                 return Err(std::io::Error::new(std::io::ErrorKind::Other,
-                                               ("Invalid injection mode options (entry) provided")))
+                                               "Invalid injection mode options (entry) provided"))
             }
 
             new_entry = Some(check.unwrap());
@@ -179,7 +173,7 @@ impl DedElfOps {
             let check = u64::from_str_radix(trimmed, 16);
             if check.is_err() {
                 return Err(std::io::Error::new(std::io::ErrorKind::Other,
-                                               ("Invalid injection mode options (byte offset) provided")))
+                                               "Invalid injection mode options (byte offset) provided"))
             }
             new_b_offset = Some(check.unwrap());
         }
@@ -221,7 +215,7 @@ impl DedElfOps {
                          placement: Option<String>) -> Result<DedElfOps, std::io::Error> {
         if field == " ".to_string() || replacement == " ".to_string(){
             return Err(std::io::Error::new(std::io::ErrorKind::Other,
-                                           ("Invalid mod mode options provided")))
+                                           "Invalid mod mode options provided"))
         }
 
         let mod_ops = match op {
@@ -263,7 +257,7 @@ impl DedElfOps {
                     }
                 } else {
                     return Err(std::io::Error::new(std::io::ErrorKind::Other,
-                                                   ("Invalid mod mode options provided")))
+                                                   "Invalid mod mode options provided"))
                 }
             }
             ModOps::SEGMENT => {
@@ -273,7 +267,7 @@ impl DedElfOps {
                     let check = usize::from_str_radix(trimmed, 16);
                     if check.is_err() {
                         return Err(std::io::Error::new(std::io::ErrorKind::Other,
-                                                       ("Invalid mod mode options provided")))
+                                                       "Invalid mod mode options provided"))
                     }
                     ModModeOps {
                         exec: None,
@@ -286,7 +280,7 @@ impl DedElfOps {
                     }
                 } else {
                     return Err(std::io::Error::new(std::io::ErrorKind::Other,
-                                                   ("Invalid mod mode options provided")))
+                                                   "Invalid mod mode options provided"))
                 }
             }
         };
@@ -319,7 +313,7 @@ impl FromStr for Mode {
             "modify" => Ok(Mode::MODIFY),
             "inject" => Ok(Mode::INJECT),
             _ => return Err(std::io::Error::new(std::io::ErrorKind::Other,
-                                          ("Invalid mode option; use either `inject` or `modify`")))
+                                          "Invalid mode option; use either `inject` or `modify`"))
         }
     }
 }
@@ -336,9 +330,9 @@ impl FromStr for ModOps {
 //            "new_seg" => Ok(Mode::INJECT),
 //            "new_sec" => Ok(Mode::MODIFY),
             _ => return Err(std::io::Error::new(std::io::ErrorKind::Other,
-                                                ("Invalid modify option provided, use \
+                                                "Invalid modify option provided, use \
                                                 one of the following: `exec_header`, \
-                                                `sec_header`, `prog_header")))
+                                                `sec_header`, `prog_header"))
         }
     }
 }
@@ -473,7 +467,7 @@ pub fn parse_exec_mod_ops(option: String) -> Result<ExecModOps, std::io::Error> 
         "e_shnum" => Ok(ExecModOps::SHNUM),
         "e_shstrndx" => Ok(ExecModOps::SHSTRNDX),
         _ => return Err(std::io::Error::new(std::io::ErrorKind::Other,
-                                            ("Invalid modify option provided for exec header field")))
+                                            "Invalid modify option provided for exec header field"))
     }
 }
 
@@ -551,7 +545,7 @@ pub fn parse_sec_mod_ops(option: String) -> Result<SecModOps, std::io::Error> {
         "sh_addralign" => Ok(SecModOps::ADDRALIGN),
         "sh_entsize" => Ok(SecModOps::ENTSIZE),
         _ => return Err(std::io::Error::new(std::io::ErrorKind::Other,
-                                            ("Invalid modify option provided for section header fields")))
+                                            "Invalid modify option provided for section header fields"))
     }
 }
 
@@ -613,7 +607,7 @@ pub fn parse_seg_mod_ops(option: String) -> Result<SegModOps, std::io::Error> {
         "p_flags" => Ok(SegModOps::FLAGS),
         "p_align" => Ok(SegModOps::ALIGN),
         _ => return Err(std::io::Error::new(std::io::ErrorKind::Other,
-                                            ("Invalid modify option provided for program header fields")))
+                                            "Invalid modify option provided for program header fields"))
     }
 }
 

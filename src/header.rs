@@ -1,14 +1,6 @@
-use crate::parser::ElfParser;
-
 use std::fs::File;
-use std::path::PathBuf;
-
-use crate::section::{SecHeader,SecHeader32,SecHeader64};
-use crate::segment::{ProgHeader,ProgHeader32,ProgHeader64};
-
 use byteorder::*;
-use std::io::Cursor;
-use std::io::{Read, Seek, SeekFrom, Write};
+use std::io::{Read, Seek, SeekFrom};
 
 
 /* Enum needed for various functions that support runtime parsing of ELF data*/
@@ -152,7 +144,7 @@ impl ExecHeader32{
                     self.e_ident[offset]=val as u8
                 } else {
                     return Err(std::io::Error::new(std::io::ErrorKind::Other,
-                                                        ("Invalid exec header change option")))
+                                                        "Invalid exec header change option"))
                 }
             },
 
@@ -170,7 +162,7 @@ impl ExecHeader32{
             "e_shnum" => self.e_shnum=val as u16,
             "e_shstrndx" => self.e_shstrndx=val as u16,
             _ => return Err(std::io::Error::new(std::io::ErrorKind::Other,
-                                                ("Invalid exec header change option")))
+                                                "Invalid exec header change option"))
 
         };
         Ok(())
@@ -281,7 +273,7 @@ impl ExecHeader64{
                     self.e_ident[offset]=val as u8
                 } else{
                     return Err(std::io::Error::new(std::io::ErrorKind::Other,
-                                                        ("Invalid exec header change option")))
+                                                        "Invalid exec header change option"))
                 }
             },
 
@@ -299,7 +291,7 @@ impl ExecHeader64{
             "e_shnum" => self.e_shnum=val as u16,
             "e_shstrndx" => self.e_shstrndx=val as u16,
             _ => return Err(std::io::Error::new(std::io::ErrorKind::Other,
-                                                ("Invalid exec header change option")))
+                                                "Invalid exec header change option"))
 
         };
         Ok(())
@@ -627,25 +619,26 @@ pub fn match_class_as_str(class: String)-> Result<u8, std::io::Error>{
     }
 }
 
+/* comments from elf.h*/
 pub fn match_osabi_as_str(osabi: String)-> Result<u8, std::io::Error>{
     match osabi.as_str(){
-        "ELFOSABI_NONE" =>Ok(0),        /* UNIX System V ABI */
-        "ELFOSABI_SYSV" => Ok(0), //             ELFOSABI_NONE,        /* Alias.  */
-        "ELFOSABI_HPUX" =>Ok(1),        /* HP-UX */
-        "ELFOSABI_NETBSD" =>Ok(2),        /* NetBSD.  */
-        "ELFOSABI_GNU" =>Ok(3),        /* Object uses GNU ELF extensions.  */
-        "ELFOSABI_LINUX" => Ok(3),       //     ELFOSABI_GNU, /* Compatibility alias.  */
-        "ELFOSABI_SOLARIS" =>Ok(6),        /* Sun Solaris.  */
-        "ELFOSABI_AIX" =>Ok(7),        /* IBM AIX.  */
-        "ELFOSABI_IRIX" =>Ok(8),        /* SGI Irix.  */
-        "ELFOSABI_FREEBSD" =>Ok(9),        /* FreeBSD.  */
-        "ELFOSABI_TRU64" =>Ok(10),        /* Compaq TRU64 UNIX.  */
-        "ELFOSABI_MODESTO" =>Ok(11),        /* Novell Modesto.  */
-        "ELFOSABI_OPENBSD" =>Ok( 12),        /* OpenBSD.  */
-        "ELFOSABI_ARM_AEABI" =>Ok(64),        /* ARM EABI */
-        "ELFOSABI_ARM" =>Ok(97),        /* ARM */
-        //ELFOSABI_OTHER(u8),
-        "ELFOSABI_STANDALONE" =>Ok(255),        /* Standalone (embedded) application */
+        "ELFOSABI_NONE" =>Ok(0),                    /* UNIX System V ABI */
+        "ELFOSABI_SYSV" => Ok(0),                   /* Alias for  ELFOSABI_NONE */
+        "ELFOSABI_HPUX" =>Ok(1),                    /* HP-UX */
+        "ELFOSABI_NETBSD" =>Ok(2),                  /* NetBSD.  */
+        "ELFOSABI_GNU" =>Ok(3),                     /* Object uses GNU ELF extensions.  */
+        "ELFOSABI_LINUX" => Ok(3),                  /* Compatibility alias for ELFOSABI_GNU  */
+        "ELFOSABI_SOLARIS" =>Ok(6),                 /* Sun Solaris.  */
+        "ELFOSABI_AIX" =>Ok(7),                     /* IBM AIX.  */
+        "ELFOSABI_IRIX" =>Ok(8),                    /* SGI Irix.  */
+        "ELFOSABI_FREEBSD" =>Ok(9),                 /* FreeBSD.  */
+        "ELFOSABI_TRU64" =>Ok(10),                  /* Compaq TRU64 UNIX.  */
+        "ELFOSABI_MODESTO" =>Ok(11),                /* Novell Modesto.  */
+        "ELFOSABI_OPENBSD" =>Ok( 12),               /* OpenBSD.  */
+        "ELFOSABI_ARM_AEABI" =>Ok(64),              /* ARM EABI */
+        "ELFOSABI_ARM" =>Ok(97),                    /* ARM */
+        //ELFOSABI_OTHER(u8),                       //TODO should support 'other'?
+        "ELFOSABI_STANDALONE" =>Ok(255),            /* Standalone (embedded) application */
         _ => return Err(std::io::Error::new(std::io::ErrorKind::Other, "Elf osabi not supported"))
 
     }
@@ -655,14 +648,16 @@ pub fn match_version(e_vers: u32)-> Result<EXEC::EI_VERS, std::io::Error> {
     match e_vers{
         0 => Ok(EXEC::EI_VERS::EV_NONE),
         1 => Ok(EXEC::EI_VERS::EV_CURRENT),
-        _ => return Err(std::io::Error::new(std::io::ErrorKind::Other, "Elf version not supported"))
+        _ => return Err(std::io::Error::new(std::io::ErrorKind::Other,
+                                            "Elf version not supported"))
     }
 }
 pub fn match_version_as_str(e_vers: String)-> Result<u32, std::io::Error> {
     match e_vers.as_str(){
         "EV_NONE"=> Ok(0),
         "EV_CURRENT"=>Ok(1),
-        _ => return Err(std::io::Error::new(std::io::ErrorKind::Other, "Elf version not supported"))
+        _ => return Err(std::io::Error::new(std::io::ErrorKind::Other,
+                                            "Elf version not supported"))
     }
 }
 
@@ -678,7 +673,8 @@ pub fn match_type(etype: u16)-> Result<EXEC::EI_TYPE, std::io::Error> {
             0xfeff=> Ok(EXEC::EI_TYPE::ET_HIOS),
             0xff00=> Ok(EXEC::EI_TYPE::ET_LOPROC),
             0xffff=> Ok(EXEC::EI_TYPE::ET_HIPROC),
-            _ => return Err(std::io::Error::new(std::io::ErrorKind::Other, "Elf type not supported"))
+            _ => return Err(std::io::Error::new(std::io::ErrorKind::Other,
+                                                "Elf type not supported"))
         }
 }
 
@@ -693,76 +689,77 @@ pub fn match_type_as_str(etype: String)->Result<u16, std::io::Error>{
         "ET_HIOS"=> Ok(0xfeff),
         "ET_LOPROC"=> Ok(0xff00),
         "ET_HIPROC"=> Ok(0xffff),
-        _ => return Err(std::io::Error::new(std::io::ErrorKind::Other, "Elf type not supported"))
+        _ => return Err(std::io::Error::new(std::io::ErrorKind::Other,
+                                            "Elf type not supported"))
     }
 }
 
 pub fn match_mach_as_str(mach: String) -> Result<u16, std::io::Error> {
     match mach.as_str(){
         "EM_NONE" => Ok(0),
-        "EM_M32" => Ok(1),          //	AT&T WE 32100
-        "EM_SPARC" => Ok(2),        //SPARC
-        "EM_386" => Ok(3),          //Intel 80386
-        "EM_68K" => Ok(4),          //Motorola 68000
-        "EM_88K" => Ok(5),          //	Motorola 88000
-        //   RESERVED = 6,        // 	Reserved for future use
-        "EM_860" => Ok(7),          //Intel 80860
-        "EM_MIPS" => Ok(8),         //	MIPS I Architecture
-        "EM_S370" => Ok(9),         // 	IBM System/370 Processor
-        "EM_MIPS_RS3_LE" => Ok(10), //	MIPS RS3000 Little-endian
-        //RESERVED 	11-14 //	Reserved for future use
-        "EM_PARISC" => Ok(15), //Hewlett-Packard PA-RISC
-        //RESERVED  16 //	Reserved for future use
-        "EM_VPP500" => Ok(17),      //Fujitsu VPP500
-        "EM_SPARC32PLUS" => Ok(18), //Enhanced instruction set SPARC
-        "EM_960" => Ok(19),         //	Intel 80960
-        "EM_PPC" => Ok(20),         //	PowerPC
-        "EM_PPC64" => Ok(21),       //	64-bit PowerPC
-        //RESERVED 	22-35 //	Reserved for future use
-        "EM_V800" => Ok(36),     //	NEC V800
-        "EM_FR20" => Ok(37),     //	Fujitsu FR20
-        "EM_RH32" => Ok(38),     //TRW RH-32
-        "EM_RCE" => Ok(39),      //Motorola RCE
-        "EM_ARM" => Ok(40),      //Advanced RISC Machines ARM
-        "EM_ALPHA" => Ok(41),    //	Digital Alpha
-        "EM_SH" => Ok(42),       //Hitachi SH
-        "EM_SPARCV9" => Ok(43),  // 	SPARC Version 9
-        "EM_TRICORE" => Ok(44),  //	Siemens Tricore embedded processor
-        "EM_ARC" => Ok(45),      //Argonaut RISC Core, Argonaut Technologies Inc.
-        "EM_H8_300" => Ok(46),   //	Hitachi H8/300
-        "EM_H8_300H" => Ok(47),  //	Hitachi H8/300H
-        "EM_H8S" => Ok(48),      //Hitachi H8S
-        "EM_H8_500" => Ok(49),   //Hitachi H8/500
-        "EM_IA_64" => Ok(50),    //Intel IA-64 processor architecture
-        "EM_MIPS_X" => Ok(51),   //Stanford MIPS-X
-        "EM_COLDFIRE" => Ok(52), //	Motorola ColdFire
-        "EM_68HC12" => Ok(53),   //Motorola M68HC12
-        "EM_MMA" => Ok(54),      //Fujitsu MMA Multimedia Accelerator
-        "EM_PCP" => Ok(55),      //Siemens PCP
-        "EM_NCPU" => Ok(56),     //Sony nCPU embedded RISC processor
-        "EM_NDR1" => Ok(57),     //Denso NDR1 microprocessor
-        "EM_STARCORE" => Ok(58), // 	Motorola Star*Core processor
-        "EM_ME16" => Ok(59),     //Toyota ME16 processor
-        "EM_ST100" => Ok(60),    //STMicroelectronics ST100 processor
-        "EM_TINYJ" => Ok(61),    //Advanced Logic Corp. TinyJ embedded processor family
-        //Reserved 	62-65 	//Reserved for future use
-        "EM_FX66" => Ok(66),     //Siemens FX66 microcontroller
-        "EM_ST9PLUS" => Ok(67),  //	STMicroelectronics ST9+ 8/16 bit microcontroller
-        "EM_ST7" => Ok(68),      //STMicroelectronics ST7 8-bit microcontroller
-        "EM_68HC16" => Ok(69),   //	Motorola MC68HC16 Microcontroller
-        "EM_68HC11" => Ok(70),   //	Motorola MC68HC11 Microcontroller
-        "EM_68HC08" => Ok(71),   //	Motorola MC68HC08 Microcontroller
-        "EM_68HC05" => Ok(72),   //	Motorola MC68HC05 Microcontroller
-        "EM_SVX" => Ok(73),      //Silicon Graphics SVx
-        "EM_ST19" => Ok(74),     //	STMicroelectronics ST19 8-bit microcontroller
-        "EM_VAX" => Ok(75),      //	Digital VAX
-        "EM_CRIS" => Ok(76),     //	Axis Communications 32-bit embedded processor
-        "EM_JAVELIN" => Ok(77),  //Infineon Technologies 32-bit embedded processor
-        "EM_FIREPATH" => Ok(78), // 	Element 14 64-bit DSP Processor
-        "EM_ZSP" => Ok(79),      //LSI Logic 16-bit DSP Processor
-        "EM_MMIX" => Ok(80),     // 	Donald Knuth's educational 64-bit processor
-        "EM_HUANY" => Ok(81),    //	Harvard University machine-independent object files
-        "EM_PRISM" => Ok(82),    //	SiTera Prism
+        "EM_M32" => Ok(1),          /*	AT&T WE 32100 */
+        "EM_SPARC" => Ok(2),        /*SPARC*/
+        "EM_386" => Ok(3),          /*Intel 80386*/
+        "EM_68K" => Ok(4),          /*Motorola 68000*/
+        "EM_88K" => Ok(5),          /*	Motorola 88000*/
+        //   RESERVED = 6,        /* 	Reserved for future use*/
+        "EM_860" => Ok(7),          /*Intel 80860*/
+        "EM_MIPS" => Ok(8),         /*	MIPS I Architecture */
+        "EM_S370" => Ok(9),         /* 	IBM System/370 Processor */
+        "EM_MIPS_RS3_LE" => Ok(10), /*	MIPS RS3000 Little-endian */
+        //RESERVED 	11-14 //	/*Reserved for future use */
+        "EM_PARISC" => Ok(15), /*Hewlett-Packard PA-RISC */
+        //RESERVED  16 //	/*Reserved for future use */
+        "EM_VPP500" => Ok(17),      /*Fujitsu VPP500 */
+        "EM_SPARC32PLUS" => Ok(18), /*Enhanced instruction set SPARC */
+        "EM_960" => Ok(19),         /*	Intel 80960 */
+        "EM_PPC" => Ok(20),         /*	PowerPC */
+        "EM_PPC64" => Ok(21),       /*	64-bit PowerPC */
+        //RESERVED 	22-35 //	/*Reserved for future use */
+        "EM_V800" => Ok(36),     /*	NEC V800 */
+        "EM_FR20" => Ok(37),     /*	Fujitsu FR20 */
+        "EM_RH32" => Ok(38),     /*TRW RH-32 */
+        "EM_RCE" => Ok(39),      /*Motorola RCE */
+        "EM_ARM" => Ok(40),      /*Advanced RISC Machines ARM */
+        "EM_ALPHA" => Ok(41),    /*	Digital Alpha */
+        "EM_SH" => Ok(42),       /*Hitachi SH */
+        "EM_SPARCV9" => Ok(43),  /* 	SPARC Version 9 */
+        "EM_TRICORE" => Ok(44),  /*	Siemens Tricore embedded processor */
+        "EM_ARC" => Ok(45),      /*Argonaut RISC Core, Argonaut Technologies Inc. */
+        "EM_H8_300" => Ok(46),   /*	Hitachi H8/300 */
+        "EM_H8_300H" => Ok(47),  /*	Hitachi H8/300H */
+        "EM_H8S" => Ok(48),      /*Hitachi H8S */
+        "EM_H8_500" => Ok(49),   /*Hitachi H8/500 */
+        "EM_IA_64" => Ok(50),    /*Intel IA-64 processor architecture */
+        "EM_MIPS_X" => Ok(51),   /*Stanford MIPS-X */
+        "EM_COLDFIRE" => Ok(52), /*	Motorola ColdFire */
+        "EM_68HC12" => Ok(53),   /*Motorola M68HC12 */
+        "EM_MMA" => Ok(54),      /*Fujitsu MMA Multimedia Accelerator */
+        "EM_PCP" => Ok(55),      /*Siemens PCP */
+        "EM_NCPU" => Ok(56),     /*Sony nCPU embedded RISC processor */
+        "EM_NDR1" => Ok(57),     /*Denso NDR1 microprocessor */
+        "EM_STARCORE" => Ok(58), /* 	Motorola Star*Core processor */
+        "EM_ME16" => Ok(59),     /*Toyota ME16 processor */
+        "EM_ST100" => Ok(60),    /*STMicroelectronics ST100 processor */
+        "EM_TINYJ" => Ok(61),    /*Advanced Logic Corp. TinyJ embedded processor family */
+        //Reserved 	62-65 	/*Reserved for future use */
+        "EM_FX66" => Ok(66),     /*Siemens FX66 microcontroller */
+        "EM_ST9PLUS" => Ok(67),  /*	STMicroelectronics ST9+ 8/16 bit microcontroller */
+        "EM_ST7" => Ok(68),      /*STMicroelectronics ST7 8-bit microcontroller */
+        "EM_68HC16" => Ok(69),   /*	Motorola MC68HC16 Microcontroller */
+        "EM_68HC11" => Ok(70),   /*	Motorola MC68HC11 Microcontroller */
+        "EM_68HC08" => Ok(71),   /*	Motorola MC68HC08 Microcontroller */
+        "EM_68HC05" => Ok(72),   /*	Motorola MC68HC05 Microcontroller */
+        "EM_SVX" => Ok(73),      /*Silicon Graphics SVx */
+        "EM_ST19" => Ok(74),     /*	STMicroelectronics ST19 8-bit microcontroller */
+        "EM_VAX" => Ok(75),      /*	Digital VAX */
+        "EM_CRIS" => Ok(76),     /*	Axis Communications 32-bit embedded processor */
+        "EM_JAVELIN" => Ok(77),  /*Infineon Technologies 32-bit embedded processor */
+        "EM_FIREPATH" => Ok(78), /* 	Element 14 64-bit DSP Processor */
+        "EM_ZSP" => Ok(79),      /*LSI Logic 16-bit DSP Processor */
+        "EM_MMIX" => Ok(80),     /* 	Donald Knuth's educational 64-bit processor */
+        "EM_HUANY" => Ok(81),    /*	Harvard University machine-independent object files */
+        "EM_PRISM" => Ok(82),    /*	SiTera Prism */
         "EM_AVR" => Ok(83),           /* Atmel AVR 8-bit microcontroller */
         "EM_FR30" => Ok(84),          /* Fujitsu FR30 */
         "EM_D10V" => Ok(85),          /* Mitsubishi D10V */
@@ -894,8 +891,8 @@ pub fn match_mach_as_str(mach: String) -> Result<u16, std::io::Error> {
     }
 }
 
-
-
+//TODO check that all machine options are represented
+/*comments from elf.h*/
 pub fn match_mach(mach: u16) -> Result<EXEC::EI_MACH, std::io::Error> {
     match mach {
         0=> Ok(EXEC::EI_MACH::EM_NONE ),
@@ -1540,9 +1537,9 @@ pub(super) mod EXEC {
 
     #[derive(Clone, Copy, Debug)]
     pub enum EI_CLASS {
-        ELFCLASSNONE, // = 0,
-        ELFCLASS32,   // = 1,
-        ELFCLASS64,   // = 2,
+        ELFCLASSNONE,
+        ELFCLASS32,
+        ELFCLASS64,
         ELFCLASSOTHER(u8),
     }
 
@@ -1561,8 +1558,8 @@ pub(super) mod EXEC {
     #[derive(Clone, Copy, Debug)]
     pub enum EI_DATA {
         ELFDATANONE = 0,
-        ELFDATA2LSB,      // = 1,
-        ELFDATA2MSB,      // = 2,
+        ELFDATA2LSB,
+        ELFDATA2MSB,
         ELFDATAOTHER(u8), //TODO are other values than 3 valid here? Need to check ELF Specs for arm and x86
     }
 
@@ -1582,21 +1579,21 @@ pub(super) mod EXEC {
     #[allow(non_camel_case_types)]
     pub enum EI_OSABI {
 
-        ELFOSABI_NONE       =              0,        /* UNIX System V ABI */
-        //ELFOSABI_SYSV =             ELFOSABI_NONE,        /* Alias.  */
-        ELFOSABI_HPUX =            1,        /* HP-UX */
-        ELFOSABI_NETBSD =              2,        /* NetBSD.  */
-        ELFOSABI_GNU  =           3,        /* Object uses GNU ELF extensions.  */
-        //ELFOSABI_LINUX =            ELFOSABI_GNU, /* Compatibility alias.  */
-        ELFOSABI_SOLARIS =      6,        /* Sun Solaris.  */
-        ELFOSABI_AIX =          7,        /* IBM AIX.  */
-        ELFOSABI_IRIX =           8,        /* SGI Irix.  */
-        ELFOSABI_FREEBSD =     9,        /* FreeBSD.  */
-        ELFOSABI_TRU64 =            10,        /* Compaq TRU64 UNIX.  */
-        ELFOSABI_MODESTO =     11,        /* Novell Modesto.  */
-        ELFOSABI_OPENBSD =     12,        /* OpenBSD.  */
-        ELFOSABI_ARM_AEABI  =      64,        /* ARM EABI */
-        ELFOSABI_ARM  =        97,        /* ARM */
+        ELFOSABI_NONE       =     0,                /* UNIX System V ABI */
+        //ELFOSABI_SYSV =                            /* Alias ELFOSABI_NONE,  */
+        ELFOSABI_HPUX =            1,                /* HP-UX */
+        ELFOSABI_NETBSD =              2,            /* NetBSD.  */
+        ELFOSABI_GNU  =           3,                /* Object uses GNU ELF extensions.  */
+        //ELFOSABI_LINUX =            ,             /* Compatibility alias ELFOSABI_GNU  */
+        ELFOSABI_SOLARIS =      6,                  /* Sun Solaris.  */
+        ELFOSABI_AIX =          7,                  /* IBM AIX.  */
+        ELFOSABI_IRIX =           8,                /* SGI Irix.  */
+        ELFOSABI_FREEBSD =     9,                   /* FreeBSD.  */
+        ELFOSABI_TRU64 =            10,             /* Compaq TRU64 UNIX.  */
+        ELFOSABI_MODESTO =     11,                  /* Novell Modesto.  */
+        ELFOSABI_OPENBSD =     12,                  /* OpenBSD.  */
+        ELFOSABI_ARM_AEABI  =      64,              /* ARM EABI */
+        ELFOSABI_ARM  =        97,                  /* ARM */
         ELFOSABI_OTHER(u8),
         ELFOSABI_STANDALONE  =      255,        /* Standalone (embedded) application */
     }

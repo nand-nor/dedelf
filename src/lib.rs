@@ -16,11 +16,9 @@ pub mod symbols;
 pub mod relocations;
 
 
-
 use std::env;
-use std::process;
 
-
+//TODO determine if possible to set custom display_usage command within argparse
 pub fn display_useage() {
     println!("\
 \nUseage:   {}   [MODE]  [INFILE]  ...  [OUTPUT]  [OPTIONS] ... \n\
@@ -81,6 +79,7 @@ pub fn display_useage() {
              env::args().nth(0).unwrap()
     );
 }
+
 
 #[cfg(test)]
 mod tests {

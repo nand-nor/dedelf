@@ -9,12 +9,9 @@ use crate::section::*;
 use crate::segment::*;
 
 use std::fs::File;
-use std::path::PathBuf;
 use std::error::Error;
-use std::io::{Read, Seek, SeekFrom};
 
 use intervaltree;
-use crate::config::ModOps;
 
 pub struct Elf {
     parser: ElfParser,

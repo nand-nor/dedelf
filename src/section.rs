@@ -1,12 +1,5 @@
-/*
-* Implementation of parsing/reading and writing
-* ELF sections, string tables, and section headers.
-*
-*/
-
 use std::fs::File;
 use std::io::{Write, Read, Seek,SeekFrom};
-use std::str;
 use byteorder::*;
 
 
@@ -606,8 +599,10 @@ impl Clone for SecHeader64{
 }
 
 
-/*Section header implementation, for parsing, writing, and creating
-* new sections as needed. */
+/*
+* Section header implementation, for parsing, writing, and creating
+* new sections as needed.
+*/
 impl SecHeader64{
 
     pub fn default()-> SecHeader64 {

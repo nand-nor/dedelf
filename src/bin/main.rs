@@ -1,6 +1,5 @@
 extern crate ded_elf;
 
-use std::env;
 use std::process;
 
 use ded_elf::{config, dedelf};
@@ -21,7 +20,7 @@ fn main() {
             }
         },
         Err(err) => {
-            println!("\nDEDelf: Exiting due to error: {:?}", err);
+            println!("\nDEDelf: Exiting, argument error: {:?}", err);
             ded_elf::display_useage();
 
             process::exit(1);

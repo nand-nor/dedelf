@@ -1,6 +1,4 @@
-use std::fs::File;
-use std::io::{Write, Read, Seek,SeekFrom};
-use std::str;
+use std::io::Read;
 use byteorder::*;
 
 use crate::header::*;
@@ -42,7 +40,8 @@ pub struct Symbol32 {
 * ELF
 */
 impl Symbol32 {
-    pub fn parse_symbol<R, T: byteorder::ByteOrder>(rdr: &mut R) -> Result<Symbol32, std::io::Error> where R: Read  {
+    pub fn parse_symbol<R, T: ByteOrder>(rdr: &mut R) -> Result<Symbol32, std::io::Error>
+        where R: Read  {
         let name = rdr.read_u32::<T>()?;
         let value = rdr.read_u32::<T>()?;
         let size = rdr.read_u32::<T>()?;
@@ -53,7 +52,6 @@ impl Symbol32 {
         let shndx = rdr.read_u16::<T>()?;
 
 
-        // println!("Parsed symbol! name {:?}, value {:?}, size {:?}, info {:?}, other {:?}, shndx {:?}", name, value, size, info[0], other[0], shndx);
         Ok(Symbol32 {
             st_name: name,
             st_value: value,
@@ -81,7 +79,8 @@ pub struct Symbol64 {
 * ELF
 */
 impl Symbol64 {
-    pub fn parse_symbol<R, T: byteorder::ByteOrder>(rdr: &mut R) -> Result<Symbol64, std::io::Error> where R: Read  {
+    pub fn parse_symbol<R, T: ByteOrder>(rdr: &mut R) -> Result<Symbol64, std::io::Error>
+        where R: Read  {
         let name = rdr.read_u32::<T>()?;
         let mut info = [0; 1];
         rdr.read_exact(&mut info)?;
@@ -91,8 +90,6 @@ impl Symbol64 {
         let value = rdr.read_u64::<T>()?;
         let size = rdr.read_u64::<T>()?;
 
-
-        // println!("Parsed symbol! name {:?}, value {:?}, size {:?}, info {:?}, other {:?}, shndx {:?}", name, value, size, info[0], other[0], shndx);
         Ok(Symbol64 {
             st_name: name,
             st_value: value,
@@ -121,7 +118,8 @@ pub struct DynSymbol32 {
 * ELF
 */
 impl DynSymbol32 {
-    pub fn parse_symbol<R, T: byteorder::ByteOrder>(rdr: &mut R) -> Result<DynSymbol32, std::io::Error> where R: Read  {
+    pub fn parse_symbol<R, T: ByteOrder>(rdr: &mut R) -> Result<DynSymbol32, std::io::Error>
+        where R: Read  {
         let name = rdr.read_u32::<T>()?;
         let value = rdr.read_u32::<T>()?;
         let size = rdr.read_u32::<T>()?;
@@ -131,8 +129,6 @@ impl DynSymbol32 {
         rdr.read_exact(&mut other)?;
         let shndx = rdr.read_u16::<T>()?;
 
-
-        // println!("Parsed symbol! name {:?}, value {:?}, size {:?}, info {:?}, other {:?}, shndx {:?}", name, value, size, info[0], other[0], shndx);
         Ok(DynSymbol32 {
             st_name: name,
             st_value: value,
@@ -160,7 +156,8 @@ pub struct DynSymbol64 {
 * ELF
 */
 impl DynSymbol64 {
-    pub fn parse_symbol<R, T: byteorder::ByteOrder>(rdr: &mut R) -> Result<DynSymbol64, std::io::Error> where R: Read  {
+    pub fn parse_symbol<R, T: ByteOrder>(rdr: &mut R) -> Result<DynSymbol64, std::io::Error>
+        where R: Read  {
         let name = rdr.read_u32::<T>()?;
         let mut info = [0; 1];
         rdr.read_exact(&mut info)?;
@@ -170,8 +167,6 @@ impl DynSymbol64 {
         let value = rdr.read_u64::<T>()?;
         let size = rdr.read_u64::<T>()?;
 
-
-        // println!("Parsed symbol! name {:?}, value {:?}, size {:?}, info {:?}, other {:?}, shndx {:?}", name, value, size, info[0], other[0], shndx);
         Ok(DynSymbol64 {
             st_name: name,
             st_value: value,
@@ -194,8 +189,11 @@ pub struct Symtable {
 
 /*Symbol table object to hold parsed symbol structs*/
 impl Symtable {
-    pub fn parse_sym_table<R,>(rdr: &mut R, sec_size: u64, idx: u32, name: String, data: EXEC::EI_DATA, class: EXEC::EI_CLASS) ->
-    Result<Symtable, std::io::Error> where R: Read {
+    pub fn parse_sym_table<R,>(rdr: &mut R, sec_size: u64,
+                               idx: u32, name: String,
+                               data: EXEC::EI_DATA,
+                               class: EXEC::EI_CLASS) -> Result<Symtable, std::io::Error>
+        where R: Read {
 
         let mut symtab_t: Vec<Symbol> = Vec::new();
         let mut total_size = 0;
@@ -205,42 +203,44 @@ impl Symtable {
                 EXEC::EI_CLASS::ELFCLASS32 => {
                     match data {
                         EXEC::EI_DATA::ELFDATA2LSB => {
-                            let sym = Symbol32::parse_symbol::<R, byteorder::LittleEndian>(rdr)?;//byteorder::BigEndian);//.clone());
+                            let sym = Symbol32::parse_symbol::<R, LittleEndian>(rdr)?;
                             symtab_t.push(Symbol::ThirtyTwo(sym));
                             std::mem::size_of::<Symbol32>()
 
                         }
                         EXEC::EI_DATA::ELFDATA2MSB => {
-                            let sym = Symbol32::parse_symbol::<R, byteorder::BigEndian>(rdr)?;//byteorder::BigEndian);//.clone());
+                            let sym = Symbol32::parse_symbol::<R, BigEndian>(rdr)?;
                             symtab_t.push(Symbol::ThirtyTwo(sym));
                             std::mem::size_of::<Symbol32>()
                         }
-                        _ => return Err(std::io::Error::new(std::io::ErrorKind::Other, "Elf not supported"))
+                        _ => return Err(std::io::Error::new(std::io::ErrorKind::Other,
+                                                            "Elf not supported"))
                     }
                 },
                 EXEC::EI_CLASS::ELFCLASS64 => {
                     match data {
                         EXEC::EI_DATA::ELFDATA2LSB => {
-                            let sym = Symbol64::parse_symbol::<R, byteorder::LittleEndian>(rdr)?;//byteorder::BigEndian);//.clone());
+                            let sym = Symbol64::parse_symbol::<R, LittleEndian>(rdr)?;
                             symtab_t.push(Symbol::SixtyFour(sym));
                             std::mem::size_of::<Symbol64>()
 
 
                         }
                         EXEC::EI_DATA::ELFDATA2MSB => {
-                            let sym = Symbol64::parse_symbol::<R, byteorder::BigEndian>(rdr)?;//byteorder::BigEndian);//.clone());
+                            let sym = Symbol64::parse_symbol::<R, BigEndian>(rdr)?;
                             symtab_t.push(Symbol::SixtyFour(sym));
                             std::mem::size_of::<Symbol64>()
 
                         }
-                        _ => return Err(std::io::Error::new(std::io::ErrorKind::Other, "Elf not supported"))
+                        _ => return Err(std::io::Error::new(std::io::ErrorKind::Other,
+                                                            "Elf not supported"))
                     }
                 }
-                _ => return Err(std::io::Error::new(std::io::ErrorKind::Other, "Elf not supported"))
+                _ => return Err(std::io::Error::new(std::io::ErrorKind::Other,
+                                                    "Elf not supported"))
             };
 
             let num_syms = sec_size / size as u64;
-            //println!("sym table contains {:?} entries", num_syms);
 
             total_size += 1;
             if total_size >= num_syms as usize {
@@ -268,45 +268,48 @@ pub struct DynSymtable {
 
 /*Symbol table object to hold parsed symbol structs*/
 impl DynSymtable {
-    pub fn parse_dynsym_table<R,>(rdr: &mut R, sec_size: u64, idx: u32, name: String, data: EXEC::EI_DATA, class: EXEC::EI_CLASS) ->
-    Result<DynSymtable, std::io::Error> where R: Read {
+    pub fn parse_dynsym_table<R,>(rdr: &mut R, sec_size: u64, idx: u32,
+                                  name: String, data: EXEC::EI_DATA,
+                                  class: EXEC::EI_CLASS) -> Result<DynSymtable, std::io::Error>
+        where R: Read {
         let mut symtab_t: Vec<DynSymbol> = Vec::new();
-        //let sym_size = std::mem::size_of::<Symbol>();
-        //let num_syms = size / sym_size as u64;
         let mut total_size = 0;
         loop {
             let size = match class {
                 EXEC::EI_CLASS::ELFCLASS32 => {
                     match data {
                         EXEC::EI_DATA::ELFDATA2LSB => {
-                            let sym = DynSymbol32::parse_symbol::<R, byteorder::LittleEndian>(rdr)?;//byteorder::BigEndian);//.clone());
+                            let sym = DynSymbol32::parse_symbol::<R, LittleEndian>(rdr)?;
                             symtab_t.push(DynSymbol::ThirtyTwo(sym));
                             std::mem::size_of::<DynSymbol32>()
                         }
                         EXEC::EI_DATA::ELFDATA2MSB => {
-                            let sym = DynSymbol32::parse_symbol::<R, byteorder::BigEndian>(rdr)?;//byteorder::BigEndian);//.clone());
+                            let sym = DynSymbol32::parse_symbol::<R, BigEndian>(rdr)?;
                             symtab_t.push(DynSymbol::ThirtyTwo(sym));
                             std::mem::size_of::<DynSymbol32>()
                         }
-                        _ => return Err(std::io::Error::new(std::io::ErrorKind::Other, "Elf not supported"))
+                        _ => return Err(std::io::Error::new(std::io::ErrorKind::Other,
+                                                            "Elf not supported"))
                     }
                 },
                 EXEC::EI_CLASS::ELFCLASS64 => {
                     match data {
                         EXEC::EI_DATA::ELFDATA2LSB => {
-                            let sym = DynSymbol64::parse_symbol::<R, byteorder::LittleEndian>(rdr)?;//byteorder::BigEndian);//.clone());
+                            let sym = DynSymbol64::parse_symbol::<R, LittleEndian>(rdr)?;
                             symtab_t.push(DynSymbol::SixtyFour(sym));
                             std::mem::size_of::<DynSymbol64>()
                         }
                         EXEC::EI_DATA::ELFDATA2MSB => {
-                            let sym = DynSymbol64::parse_symbol::<R, byteorder::BigEndian>(rdr)?;//byteorder::BigEndian);//.clone());
+                            let sym = DynSymbol64::parse_symbol::<R, BigEndian>(rdr)?;
                             symtab_t.push(DynSymbol::SixtyFour(sym));
                             std::mem::size_of::<DynSymbol64>()
                         }
-                        _ => return Err(std::io::Error::new(std::io::ErrorKind::Other, "Elf not supported"))
+                        _ => return Err(std::io::Error::new(std::io::ErrorKind::Other,
+                                                            "Elf not supported"))
                     }
                 }
-                _ => return Err(std::io::Error::new(std::io::ErrorKind::Other, "Elf not supported"))
+                _ => return Err(std::io::Error::new(std::io::ErrorKind::Other,
+                                                    "Elf not supported"))
             };
             let num_syms = sec_size / size as u64;
             //println!("dyn sym table contains {:?} entries", num_syms);
@@ -325,6 +328,7 @@ impl DynSymtable {
 
 }
 
+#[allow(non_camel_case_types)]
 pub enum ST_bind{
     STB_LOCAL = 0,
     STB_GLOBAL = 1,
@@ -333,7 +337,7 @@ pub enum ST_bind{
     STB_HIPROC = 15,
 }
 
-
+#[allow(non_camel_case_types)]
 pub enum ST_type{
     STT_NOTYPE = 0,
     STT_OBJECT = 1,
@@ -346,6 +350,7 @@ pub enum ST_type{
     STT_HIPROC = 15,
 }
 
+#[allow(non_camel_case_types)]
 pub enum SHN {
     SHN_UNDEF = 0,
     SHN_ABS,
