@@ -6,7 +6,13 @@ tests/bin/*
 tests/bytes/*
 tests/code/*.o
 tests/code/*.S
-tests/assembly/*
+/tests/assembly/*
+/tests/assembly/*.s
+/tests/assembly/*.S
+/tests/assembly/*.asm
+/tests/assembly/*.ndisasm
+/tests/assembly/inject*
+/tests/assembly/exec_*
 shell_asm/bin/*
 shell_asm/assembly/*.asm
 shell_asm/assembly/*.s
