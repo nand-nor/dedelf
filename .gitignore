@@ -2,6 +2,11 @@
 /target
 **/*.rs.bk
 Cargo.lock
+tests/bin/*
+tests/bytes/*
+tests/code/*.o
+tests/code/*.S
+tests/assembly/*
 shell_asm/bin/*
 shell_asm/assembly/*.asm
 shell_asm/assembly/*.s
@@ -11,3 +16,8 @@ shell_asm/assembly/*.o
 shell_asm/code/*.o
 .gdbinit
 
+*.s
+*.o
+inject
+tests/assembly/riscv/*
+*.pdf

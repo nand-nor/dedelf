@@ -36,6 +36,7 @@ pub fn parse_args(infile: &mut String,
 
         parser.refer(&mut default_mode).required().add_argument("mode", Store,
                                                                 r#"Specify run mode: either `inject` or `modify`"#);
+
         parser.refer(infile).required().add_argument("infile", Store,
                                                      r#"File to modify or inject"#);
 
